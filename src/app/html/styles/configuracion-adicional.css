@@ -1,0 +1,91 @@
+/* Estilos adicionales específicos para la página de configuración */
+.bg-gradient-primary-light {
+  background: linear-gradient(135deg, var(--color-primary-light) 0%, #f0f7ff 100%);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.focus-effect {
+  transition: all 0.3s ease;
+}
+
+.focus-effect:focus-within {
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.3);
+}
+
+.hover-effect {
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.hover-effect:hover {
+  transform: translateY(-2px);
+  color: var(--color-primary);
+}
+
+.transition-shadow {
+  transition: box-shadow 0.3s ease;
+}
+
+.transition-colors {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.pulse {
+  animation: pulse-animation 2s infinite;
+}
+
+@keyframes pulse-animation {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.select-wrapper {
+  position: relative;
+}
+
+.select-arrow {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--color-text-tertiary);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Estilos para mejorar la visualización de la contraseña */
+.password-strength__progress {
+  transition: width 0.3s ease, background-color 0.3s ease;
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* Mejoras en los botones */
+.btn--primary:hover {
+  background-color: var(--color-primary-dark);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+.btn--outline:hover {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  transition: all 0.2s ease;
+}
+
+/* Mejoras en los checkboxes y radios */
+.checkbox__input:checked + .checkbox__label:before,
+.radio__input:checked + .radio__label:before {
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+  transition: all 0.2s ease;
+}

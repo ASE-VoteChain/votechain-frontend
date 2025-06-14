@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoteChain - Validación de votación</title>
+  <link rel="stylesheet" href="styles/votechain.css">
+  <!-- Aquí podrías agregar un favicon posteriormente -->
+</head>
+<body>
+  <header class="header">
+    <div class="container flex justify-between items-center">
+      <div class="logo">
+        <div class="logo__text">VoteChain</div>
+        <div class="logo__tagline">Validación de votación</div>
+      </div>
+      <div>
+        <a href="login.html" class="btn btn--outline">Iniciar sesión</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar__links">        <a href="index.html" class="nav-link">Inicio</a>
+        <a href="votaciones.html" class="nav-link">Votaciones</a>
+        <a href="resultados.html" class="nav-link">Resultados</a>
+        <a href="panel-publico.html" class="nav-link">Panel público</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="container">
+      <div class="section">
+        <div class="card" style="max-width: 700px; margin: 0 auto;">
+          <h2 class="text-center mb-4">Validación de Votación</h2>
+          
+          <div class="card mb-4">
+            <h3 class="card__title">Votación: Representante vecinal 2025</h3>
+            <div class="card__content">
+              <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                  <p class="text-secondary mb-1">Fecha de cierre</p>
+                  <p><strong>25 mayo 2025</strong></p>
+                </div>
+                <div>
+                  <p class="text-secondary mb-1">Total de votos</p>
+                  <p><strong>432</strong></p>
+                </div>
+                <div>
+                  <p class="text-secondary mb-1">Estado</p>
+                  <p><span class="badge badge--success">Finalizada</span></p>
+                </div>
+                <div>
+                  <p class="text-secondary mb-1">Participación</p>
+                  <p><strong>76%</strong></p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card mb-4">
+            <h3 class="card__title">Verificación en Blockchain</h3>
+            <div class="card__content">
+              <p class="mb-2">Este identificador garantiza que los resultados no han sido alterados y pueden ser verificados públicamente.</p>
+              <div class="hash mb-4">
+                9f24bd3a79c482a7b01f339ac6f1c0d62e3aaf79b88eea29d8e4c5a0ef37d5ba
+              </div>
+              
+              <div class="alert alert--info">
+                <div class="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                  <span>Los resultados de esta votación están almacenados de forma permanente e inmutable en la blockchain.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+    <div class="card">
+      <h3>Votación: Representante vecinal 2025</h3>
+      <p><strong>Fecha de cierre:</strong> 25 mayo 2025</p>
+      <p><strong>Total de votos:</strong> 345</p>
+      <p><strong>Estado:</strong> Finalizada</p>
+    </div>
+
+    <div class="card">
+      <h3>Hash en Blockchain</h3>
+      <p class="hash">9f24bd3a79c482a7b01f339ac6f1c0d62e3aaf79b88eea29d8e4c5a0ef37d5ba</p>
+      <p>Este identificador garantiza que los resultados no han sido alterados y pueden ser verificados públicamente.</p>
+    </div>
+
+    <div class="card">
+      <h3>Verificar en explorador externo</h3>
+      <p><a href="#" style="font-size: 14px;">Abrir explorador de bloques</a></p>
+    </div>
+
+    <div class="actions">
+      <button>Volver al panel</button>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+            <h3 class="card__title">Verificar mi voto</h3>
+            <div class="card__content">
+              <div class="form-group mb-4">
+                <label class="form-label">Ingrese su código de verificación</label>
+                <input type="text" class="form-control" placeholder="Ejemplo: 35f8d7e59a86c45c9f5a3fe12fe32677b8f95453c621f4a46481ef9b5932b8a7">
+              </div>
+              <button class="btn btn--primary">Verificar mi voto</button>
+            </div>
+          </div>
+          
+          <div class="card">
+            <h3 class="card__title">Verificar en explorador externo</h3>
+            <div class="card__content">
+              <p class="mb-3">Para verificar la información en la red blockchain pública, utilice el siguiente enlace:</p>
+              <a href="#" class="btn btn--outline">Abrir explorador de bloques</a>
+            </div>
+          </div>
+          
+          <div class="text-center mt-4">
+            <a href="index.html" class="btn btn--text">Volver al inicio</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="logo">
+          <div class="logo__text">VoteChain</div>
+          <div class="logo__tagline">Democracia digital segura</div>
+        </div>
+        <div class="footer-links">
+          <a href="#" class="footer-link">Términos y condiciones</a>
+          <a href="#" class="footer-link">Política de privacidad</a>
+          <a href="#" class="footer-link">Contacto</a>
+        </div>
+      </div>
+      <div class="copyright">
+        © 2025 VoteChain. Todos los derechos reservados.
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

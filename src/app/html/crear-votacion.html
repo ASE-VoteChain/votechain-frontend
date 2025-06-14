@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoteChain - Crear votación</title>
+  <link rel="stylesheet" href="styles/votechain.css">
+  <!-- Aquí podrías agregar un favicon posteriormente -->
+</head>
+<body>
+  <header class="header">
+    <div class="container flex justify-between items-center">
+      <div class="logo">
+        <div class="logo__text">VoteChain</div>
+        <div class="logo__tagline">Crear votación</div>
+      </div>
+      <div class="flex items-center">
+        <div class="mr-3">
+          <span class="text-secondary">Bienvenido, <strong>Admin</strong></span>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn--outline btn--sm">
+            <span>Mi cuenta</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar__links">
+    nav a {
+      color: #333;
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px dashed #aaa;
+      border-radius: 4px;
+      font-size: 14px;
+    }        <a href="dashboard.html" class="nav-link">Dashboard</a>
+        <a href="votaciones.html" class="nav-link">Votaciones</a>
+        <a href="resultados.html" class="nav-link">Resultados</a>
+        <a href="administrar-votaciones.html" class="nav-link">Administrar</a>
+        <a href="crear-votacion.html" class="nav-link active">Crear votación</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="container">
+      <div class="section">
+        <h2 class="text-center mb-4">Crear nueva votación</h2>
+        
+        <div class="card" style="max-width: 800px; margin: 0 auto;">
+          <form>
+            <div class="form-group">
+              <label for="titulo" class="form-label">Título de la votación</label>
+              <input type="text" id="titulo" class="form-control" placeholder="Ej. Elección de delegados estudiantiles">
+            </div>
+
+            <div class="form-group">
+              <label for="descripcion" class="form-label">Descripción</label>
+              <textarea id="descripcion" rows="4" class="form-control" placeholder="Breve explicación del propósito de la votación..."></textarea>
+            </div>
+            
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+              <div class="form-group">
+                <label for="fecha-inicio" class="form-label">Fecha de inicio</label>
+                <input type="date" id="fecha-inicio" class="form-control">
+              </div>
+              
+              <div class="form-group">
+                <label for="fecha-cierre" class="form-label">Fecha de cierre</label>
+                <input type="date" id="fecha-cierre" class="form-control">
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="tipo" class="form-label">Tipo de votación</label>
+              <select id="tipo" class="form-select">
+                <option value="">Seleccionar tipo...</option>
+                <option value="eleccion">Elección de representantes</option>
+                <option value="consulta">Consulta ciudadana</option>
+                <option value="presupuesto">Asignación de presupuesto</option>
+                <option value="propuesta">Aprobación de propuestas</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Visibilidad</label>
+              <div class="mt-2">
+                <label class="flex items-center mb-2">
+                  <input type="radio" name="visibility" value="publica" checked>
+                  <span class="ml-2">Pública - Visible para todos los usuarios</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="radio" name="visibility" value="privada">
+                  <span class="ml-2">Privada - Solo visible para participantes autorizados</span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="opciones" class="form-label">Opciones de votación</label>
+              <div id="opciones">
+                <div class="mb-2 flex items-center">
+                  <input type="text" class="form-control" placeholder="Opción 1">
+                  <button type="button" class="btn btn--text ml-2">Eliminar</button>
+                </div>
+                <div class="mb-2 flex items-center">
+                  <input type="text" class="form-control" placeholder="Opción 2">
+                  <button type="button" class="btn btn--text ml-2">Eliminar</button>
+                </div>
+                <div class="mb-2 flex items-center">
+                  <input type="text" class="form-control" placeholder="Opción 3">
+                  <button type="button" class="btn btn--text ml-2">Eliminar</button>
+                </div>
+              </div>
+              <button type="button" class="btn btn--outline btn--sm mt-2">+ Añadir otra opción</button>
+            </div>
+            
+            <div class="card__footer flex justify-between mt-4">
+              <button type="button" class="btn btn--text" onclick="history.back()">Cancelar</button>
+              <button type="submit" class="btn btn--primary">Crear votación</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="logo">
+          <div class="logo__text">VoteChain</div>
+          <div class="logo__tagline">Democracia digital segura</div>
+        </div>
+        <div class="footer-links">
+          <a href="#" class="footer-link">Términos y condiciones</a>
+          <a href="#" class="footer-link">Política de privacidad</a>
+          <a href="#" class="footer-link">Contacto</a>
+        </div>
+      </div>
+      <div class="copyright">
+        © 2025 VoteChain. Todos los derechos reservados.
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

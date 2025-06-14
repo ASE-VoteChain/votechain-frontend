@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoteChain - Emitir voto</title>
+  <link rel="stylesheet" href="styles/votechain.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container flex justify-between items-center">
+      <div class="logo">
+        <div class="logo__text">VoteChain</div>
+        <div class="logo__tagline">Democracia digital segura</div>
+      </div>
+      <div class="flex items-center">
+        <div class="mr-3">
+          <span class="text-secondary">Bienvenido, <strong>Juan Pérez</strong></span>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn--outline btn--sm">
+            <span>Mi cuenta</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar__links">
+        <a href="index.html" class="nav-link">Inicio</a>
+        <a href="votaciones.html" class="nav-link active">Votaciones</a>
+        <a href="resultados.html" class="nav-link">Resultados</a>
+        <a href="perfil.html" class="nav-link">Mi perfil</a>
+        <a href="panel-publico.html" class="nav-link">Panel público</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="container">
+      <div class="card shadow-md" style="max-width: 700px; margin: 0 auto;">
+        <h2 class="card__title text-center" style="border-bottom: 1px solid var(--color-border); padding-bottom: 16px;">
+          Votación: Representante de la comunidad
+        </h2>
+        
+        <div class="step-indicator mt-4">
+          <div class="step-indicator__step step-indicator__step--active"></div>
+          <div class="step-indicator__step"></div>
+          <div class="step-indicator__step"></div>
+        </div>
+
+        <div class="alert alert--info mt-4">
+          <strong>Información de votación</strong>
+          <p class="mt-1">Esta elección busca designar un representante vecinal que actuará como enlace entre los ciudadanos y el municipio durante el año 2025.</p>
+          <div class="flex mt-2">
+            <div class="mr-4">
+              <strong>Fecha de inicio:</strong> 10 mayo 2025
+            </div>
+            <div>
+              <strong>Fecha de cierre:</strong> 25 de mayo de 2025
+            </div>
+          </div>
+        </div>
+
+        <form class="mt-4" action="confirmacion.html">
+          <p class="mb-2"><strong>Seleccione un candidato:</strong></p>
+
+          <div class="card mb-2" style="border: 1px solid var(--color-border); transition: all 0.2s">
+            <label for="c1" class="flex items-center" style="cursor: pointer;">
+              <input type="radio" name="vote" id="c1" class="mr-3" style="transform: scale(1.5);">
+              <div class="w-100">
+                <div class="flex justify-between">
+                  <h3 class="mb-1">Rosa Pérez</h3>
+                  <span class="badge badge--primary">Candidato A</span>
+                </div>
+                <p class="mb-0 text-secondary">Propuesta: Mejora de espacios públicos y seguridad comunitaria</p>
+              </div>
+            </label>
+          </div>
+
+          <div class="card mb-2" style="border: 1px solid var(--color-border); transition: all 0.2s">
+            <label for="c2" class="flex items-center" style="cursor: pointer;">
+              <input type="radio" name="vote" id="c2" class="mr-3" style="transform: scale(1.5);">
+              <div class="w-100">
+                <div class="flex justify-between">
+                  <h3 class="mb-1">Juan Torres</h3>
+                  <span class="badge badge--primary">Candidato B</span>
+                </div>
+                <p class="mb-0 text-secondary">Propuesta: Programas sociales y desarrollo comunitario</p>
+              </div>
+            </label>
+          </div>
+
+          <div class="card mb-2" style="border: 1px solid var(--color-border); transition: all 0.2s">
+            <label for="c3" class="flex items-center" style="cursor: pointer;">
+              <input type="radio" name="vote" id="c3" class="mr-3" style="transform: scale(1.5);">
+              <div class="w-100">
+                <div class="flex justify-between">
+                  <h3 class="mb-1">Lidia Flores</h3>
+                  <span class="badge badge--primary">Candidato C</span>
+                </div>
+                <p class="mb-0 text-secondary">Propuesta: Transparencia en gestión y participación vecinal</p>
+              </div>
+            </label>
+          </div>
+
+          <div class="alert alert--warning mt-4">
+            <strong>Importante:</strong> Su voto es anónimo y seguro. Una vez emitido, no podrá ser modificado.
+          </div>
+
+          <div class="flex justify-between mt-4">
+            <a href="votaciones.html" class="btn btn--outline">Cancelar</a>
+            <button type="submit" class="btn btn--primary">Continuar →</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="logo__text">VoteChain</div>
+        <div class="footer-links">
+          <a href="#" class="footer-link">Ayuda</a>
+          <a href="#" class="footer-link">Términos</a>
+          <a href="#" class="footer-link">Privacidad</a>
+          <a href="#" class="footer-link">Contacto</a>
+        </div>
+      </div>
+      <div class="copyright">
+        © 2025 VoteChain. Todos los derechos reservados.
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

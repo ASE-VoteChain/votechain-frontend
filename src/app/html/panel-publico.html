@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoteChain - Panel Público</title>
+  <link rel="stylesheet" href="styles/votechain.css">
+  <!-- Aquí podrías agregar un favicon posteriormente -->
+</head>
+<body>
+  <header class="header">
+    <div class="container flex justify-between items-center">
+      <div class="logo">
+        <div class="logo__text">VoteChain</div>
+        <div class="logo__tagline">Panel público</div>
+      </div>
+      <div>
+        <a href="login.html" class="btn btn--outline">Iniciar sesión</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar__links">        <a href="index.html" class="nav-link">Inicio</a>
+        <a href="votaciones.html" class="nav-link">Votaciones</a>
+        <a href="resultados.html" class="nav-link">Resultados</a>
+        <a href="panel-publico.html" class="nav-link active">Panel público</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="container">
+      <div class="section">
+        <h2 class="text-center mb-4">Transparencia Electoral en Tiempo Real</h2>
+
+        <div class="card mb-4">
+          <h3 class="card__title">Resumen actual de la elección</h3>
+          <div class="card__content">
+            <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+              <div>
+                <p class="text-secondary mb-1">Votación</p>
+                <p><strong>Presupuesto participativo 2025</strong></p>
+              </div>
+              <div>
+                <p class="text-secondary mb-1">Estado</p>
+                <p><span class="badge badge--primary">En progreso</span></p>
+              </div>
+              <div>
+                <p class="text-secondary mb-1">Cierre</p>
+                <p><strong>30 junio 2025</strong></p>
+              </div>
+              <div>
+                <p class="text-secondary mb-1">Votos contabilizados</p>
+                <p><strong>245 votos</strong></p>
+              </div>
+              <div>
+                <p class="text-secondary mb-1">Participación</p>
+                <p><strong>32%</strong></p>
+              </div>
+              <div>
+                <p class="text-secondary mb-1">Hash de verificación</p>
+                <p><a href="#" class="text-primary">Ver hash</a></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+      <h3>Resumen actual de la elección</h3>
+      <ul>
+        <li><strong>Votación:</strong> Presupuesto participativo 2025</li>
+        <li><strong>Votos emitidos:</strong> 834</li>
+        <li><strong>Estado:</strong> Abierta</li>
+        <li><strong>Fecha de cierre:</strong> 30 mayo 2025</li>
+      </ul>
+    </div>
+
+    <div class="chart">
+      <h3 class="card__title">Distribución de votos por opción</h3>
+      <div class="card__content">
+        <div class="mb-4">
+          <div class="mb-3">
+            <div class="flex justify-between items-center mb-1">
+              <span><strong>Proyecto de infraestructura vial</strong></span>
+              <span class="badge badge--primary">41.3%</span>
+            </div>
+            <div class="progress-container">
+              <div class="progress-bar progress-bar--primary" style="width: 41.3%;">41.3%</div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="flex justify-between items-center mb-1">
+              <span><strong>Mejora de espacios públicos</strong></span>
+              <span class="badge badge--secondary">35.8%</span>
+            </div>
+            <div class="progress-container">
+              <div class="progress-bar" style="background-color: var(--color-secondary); width: 35.8%;">35.8%</div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="flex justify-between items-center mb-1">
+              <span><strong>Centro cultural comunitario</strong></span>
+              <span class="badge badge--info">22.9%</span>
+            </div>
+            <div class="progress-container">
+              <div class="progress-bar" style="background-color: var(--color-info); width: 22.9%;">22.9%</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="chart-placeholder">
+          Visualización gráfica detallada
+        </div>
+      </div>
+    </div>
+    
+    <div class="card mb-4">
+      <h3 class="card__title">Evolución de votos en tiempo real</h3>
+      <div class="card__content">
+        <div class="chart-placeholder mb-3">
+          Gráfico de línea de tiempo real
+        </div>
+        <div class="alert alert--info">
+          <div class="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>Esta información se actualiza automáticamente cada 5 minutos.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3 class="card__title">Historial de bloques en blockchain</h3>
+      <div class="card__content">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Hash</th>
+                <th>Votos</th>
+                <th>Verificación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>11/06/2025 10:15</td>
+                <td class="hash">8e31c6...</td>
+                <td>27</td>
+                <td><a href="#">Verificar</a></td>
+              </tr>
+              <tr>
+                <td>11/06/2025 09:30</td>
+                <td class="hash">3f72a9...</td>
+                <td>35</td>
+                <td><a href="#">Verificar</a></td>
+              </tr>
+              <tr>
+                <td>11/06/2025 08:45</td>
+                <td class="hash">c4d8e5...</td>
+                <td>18</td>
+                <td><a href="#">Verificar</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="text-center mt-3">
+          <a href="#" class="btn btn--outline">Ver historial completo</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="logo">
+          <div class="logo__text">VoteChain</div>
+          <div class="logo__tagline">Democracia digital segura</div>
+        </div>
+        <div class="footer-links">
+          <a href="#" class="footer-link">Términos y condiciones</a>
+          <a href="#" class="footer-link">Política de privacidad</a>
+          <a href="#" class="footer-link">Contacto</a>
+        </div>
+      </div>
+      <div class="copyright">
+        © 2025 VoteChain. Todos los derechos reservados.
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
