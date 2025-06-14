@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoteChain - Iniciar sesión</title>
+  <link rel="stylesheet" href="styles/votechain.css">
+</head>
+<body class="bg-primary-light">
+  <div class="container" style="height: 100vh; display: flex; justify-content: center; align-items: center;">
+    <div class="card shadow-md" style="width: 100%; max-width: 420px; margin: 0 auto;">
+      <div class="text-center mb-4">
+        <div class="logo" style="justify-content: center;">
+          <div class="logo__text">VoteChain</div>
+        </div>
+        <h2 style="font-size: 22px; color: var(--color-text-primary);">Iniciar sesión</h2>
+        <p class="text-secondary">Accede a tu cuenta para participar en votaciones</p>
+      </div>
+      
+      <form action="dashboard.html">
+        <div class="form-group">
+          <label for="email" class="form-label">Correo electrónico</label>
+          <input type="email" id="email" class="form-control" placeholder="usuario@email.com" required>
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">Contraseña</label>
+          <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+          <div class="text-right mt-1">
+            <a href="#" class="text-secondary" style="font-size: 14px;">¿Olvidaste tu contraseña?</a>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--block mt-4">Iniciar sesión</button>
+      </form>
+      
+      <div class="text-center mt-4">
+        <p>¿No tienes una cuenta? <a href="registro.html">Regístrate aquí</a></p>
+        <a href="index.html" class="text-secondary" style="font-size: 14px; display: inline-block; margin-top: 16px;">
+          ← Volver a inicio
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

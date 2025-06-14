@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoteChain - Panel de usuario</title>
+  <link rel="stylesheet" href="styles/votechain.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container flex justify-between items-center">
+      <div class="logo">
+        <div class="logo__text">VoteChain</div>
+        <div class="logo__tagline">Panel de usuario</div>
+      </div>
+      <div class="flex items-center">
+        <div class="mr-3">
+          <span class="text-secondary">Bienvenido, <strong>Juan Pérez</strong></span>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn--outline btn--sm">
+            <span>Mi cuenta</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar__links">
+        <a href="index.html" class="nav-link">Inicio</a>
+        <a href="votaciones.html" class="nav-link">Votaciones</a>
+        <a href="resultados.html" class="nav-link">Resultados</a>
+        <a href="perfil.html" class="nav-link">Mi perfil</a>
+        <a href="panel-publico.html" class="nav-link">Panel público</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="container">
+      <h2 class="text-center mb-5">Panel de usuario</h2>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card__title">Votaciones activas</div>
+          <div class="stat-card__value">2</div>
+          <div class="stat-card__change">
+            <span>Requiere tu participación</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card__title">Votaciones completadas</div>
+          <div class="stat-card__value">7</div>
+          <div class="stat-card__change text-success">
+            <span>Gracias por participar</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card__title">Próxima votación</div>
+          <div class="stat-card__value">3</div>
+          <div class="stat-card__change">
+            <span>Días restantes</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card__title">Estado</div>
+          <div class="stat-card__value text-success">Verificado</div>
+          <div class="stat-card__change">
+            <span>Usuario activo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 24px;">
+        <div>
+          <div class="card">
+            <h3 class="card__title">Votaciones pendientes</h3>
+            <div class="card__content">
+              <div class="vote-item">
+                <div>
+                  <div class="vote-item__name">Representante vecinal</div>
+                  <div class="vote-item__date">Cierra: 25 mayo 2025</div>
+                </div>
+                <a href="emitir-voto.html" class="btn btn--primary btn--sm">Votar ahora</a>
+              </div>
+              <div class="vote-item">
+                <div>
+                  <div class="vote-item__name">Presupuesto participativo</div>
+                  <div class="vote-item__date">Cierra: 30 mayo 2025</div>
+                </div>
+                <a href="emitir-voto.html" class="btn btn--primary btn--sm">Votar ahora</a>
+              </div>
+              <div class="mt-3">
+                <a href="votaciones.html" class="btn btn--outline">Ver todas las votaciones</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mt-4">
+            <h3 class="card__title">Resultados recientes</h3>
+            <div class="card__content">
+              <div class="vote-item">
+                <div>
+                  <div class="vote-item__name">Consulta ciudadana sobre seguridad</div>
+                  <div class="vote-item__date">Finalizada: 20 abril 2025</div>
+                </div>
+                <a href="resultados.html" class="btn btn--outline btn--sm">Ver resultados</a>
+              </div>
+              <div class="chart-placeholder mt-3">
+                Gráfico de resultados generales
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <h3 class="card__title">Tu perfil</h3>
+            <div class="card__content">
+              <div class="text-center mb-3">
+                <div style="width: 80px; height: 80px; background-color: #e2e8f0; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; color: var(--color-text-tertiary);">JP</div>
+                <p class="mt-2"><strong>Juan Pérez</strong></p>
+                <p class="text-secondary" style="font-size: 14px;">usuario@email.com</p>
+              </div>
+              <a href="perfil.html" class="btn btn--outline btn--block">Ver perfil completo</a>
+            </div>
+          </div>
+
+          <div class="card mt-4">
+            <h3 class="card__title">Herramientas rápidas</h3>
+            <div class="card__content">
+              <a href="validar-votacion.html" class="btn btn--outline btn--block mb-2">Validar un voto</a>
+              <a href="historial.html" class="btn btn--outline btn--block">Mi historial</a>
+            </div>
+          </div>
+
+          <div class="alert alert--info mt-4">
+            <strong>Cambios en términos de uso</strong>
+            <p style="font-size: 14px;">Hemos actualizado nuestra política de privacidad. Por favor revísala para más información.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="logo__text">VoteChain</div>
+        <div class="footer-links">
+          <a href="#" class="footer-link">Ayuda</a>
+          <a href="#" class="footer-link">Términos</a>
+          <a href="#" class="footer-link">Privacidad</a>
+          <a href="#" class="footer-link">Contacto</a>
+        </div>
+      </div>
+      <div class="copyright">
+        © 2025 VoteChain. Todos los derechos reservados.
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

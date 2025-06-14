@@ -1,0 +1,28 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Open+Sans:wght@400;500;600&display=swap');
+
+:root {
+  /* VoteChain Colors */
+  --color-primary: #1a56db;           
+  --color-primary-dark: #1e429f;      
+  --color-primary-light: #e6f0ff;     
+  --color-secondary: #34d399;          
+  --color-secondary-dark: #10b981;     
+  --color-accent: #8b5cf6;             
+  --color-surface: #ffffff;            
+  --color-text-primary: #1f2937;       
+  --color-text-secondary: #4b5563;     
+  --color-text-tertiary: #6b7280;      
+  --color-text-on-dark: #ffffff;       
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+body {
+  font-family: 'Open Sans', sans-serif;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+}

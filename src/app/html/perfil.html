@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoteChain - Perfil de usuario</title>
+  <link rel="stylesheet" href="styles/votechain.css">
+  <!-- Aquí podrías agregar un favicon posteriormente -->
+</head>
+<body>
+  <header class="header">
+    <div class="container flex justify-between items-center">
+      <div class="logo">
+        <div class="logo__text">VoteChain</div>
+        <div class="logo__tagline">Perfil de usuario</div>
+      </div>
+      <div class="flex items-center">
+        <div class="mr-3">
+          <span class="text-secondary">Bienvenido, <strong>Sebastián Ramírez</strong></span>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn--outline btn--sm">
+            <span>Mi cuenta</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar__links">        <a href="index.html" class="nav-link">Inicio</a>
+        <a href="dashboard.html" class="nav-link">Dashboard</a>
+        <a href="votaciones.html" class="nav-link">Votaciones</a>
+        <a href="resultados.html" class="nav-link">Resultados</a>
+        <a href="perfil.html" class="nav-link active">Perfil</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="container">
+      <div class="section">
+        <h2 class="text-center mb-4">Perfil del usuario</h2>
+        
+        <div class="grid" style="grid-template-columns: 1fr 2fr; gap: 30px;">
+          <div>
+            <div class="card text-center">
+              <div style="width: 150px; height: 150px; background-color: var(--color-primary-light); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 50px; font-weight: bold; color: var(--color-primary);">SR</div>
+              
+              <h3 class="mb-1">Sebastián Ramírez</h3>
+              <p class="text-secondary mb-3">sebastian@email.com</p>
+              
+              <div class="flex justify-center">
+                <span class="badge badge--primary">Votante</span>
+              </div>
+              
+              <div class="mt-4 pt-3" style="border-top: 1px solid var(--color-border);">
+                <a href="configuracion.html" class="btn btn--outline btn--block mb-2">Editar perfil</a>
+                <button class="btn btn--text btn--block text-error">Cerrar sesión</button>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <div class="card mb-4">
+              <h3 class="card__title">Información personal</h3>
+              <div class="card__content">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+                  <div class="form-group">
+                    <label class="form-label">Nombre completo</label>
+                    <p><strong>Sebastián Ramírez</strong></p>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <p><strong>sebastian@email.com</strong></p>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Rol</label>
+                    <p><strong>Votante</strong></p>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Fecha de registro</label>
+                    <p><strong>15 enero 2024</strong></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="card">
+              <h3 class="card__title">Historial de votaciones</h3>
+              <div class="card__content">
+                <div class="mb-4">
+                  <div class="vote-item">
+                    <div>
+                      <div class="vote-item__name">Representante vecinal 2025</div>
+                      <div class="vote-item__date">Votó el 12 mayo 2025</div>
+                    </div>
+                    <div class="badge badge--success">✓ Verificado</div>
+                  </div>
+                  
+                  <div class="vote-item">
+                    <div>
+                      <div class="vote-item__name">Presupuesto participativo 2024</div>
+                      <div class="vote-item__date">Votó el 10 diciembre 2024</div>
+                    </div>
+                    <div class="badge badge--success">✓ Verificado</div>
+                  </div>
+                  
+                  <div class="vote-item">
+                    <div>
+                      <div class="vote-item__name">Consulta de seguridad ciudadana</div>
+                      <div class="vote-item__date">Votó el 18 agosto 2024</div>
+                    </div>
+                    <div class="badge badge--success">✓ Verificado</div>
+                  </div>
+                </div>
+                
+                <div class="text-center">
+                  <a href="historial.html" class="btn btn--outline">Ver historial completo</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="logo">
+          <div class="logo__text">VoteChain</div>
+          <div class="logo__tagline">Democracia digital segura</div>
+        </div>
+        <div class="footer-links">
+          <a href="#" class="footer-link">Términos y condiciones</a>
+          <a href="#" class="footer-link">Política de privacidad</a>
+          <a href="#" class="footer-link">Contacto</a>
+        </div>
+      </div>
+      <div class="copyright">
+        © 2025 VoteChain. Todos los derechos reservados.
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
