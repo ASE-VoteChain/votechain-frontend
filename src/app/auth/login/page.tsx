@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import ApiService from '@/lib/api'
+import AuthService from '@/lib/auth'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -14,9 +16,7 @@ export default function LoginPage() {
   const [blockTimeRemaining, setBlockTimeRemaining] = useState(0)
   const router = useRouter()
 
-  // Credenciales válidas
-  const VALID_EMAIL = 'sebastian1987102@gmail.com'
-  const VALID_PASSWORD = '123456789'
+  // Configuración de bloqueo por intentos fallidos
   const MAX_ATTEMPTS = 3
   const BLOCK_DURATION = 300 // 5 minutos en segundos
   // Efecto para manejar el timer de bloqueo
@@ -55,41 +55,62 @@ export default function LoginPage() {
     setErrorMessage('')
     
     try {
-      // Simulación de tiempo de procesamiento
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Llamar a la API de login
+      const authResponse = await ApiService.login({
+        email,
+        password
+      })
       
-      // Validar credenciales
-      if (email === VALID_EMAIL && password === VALID_PASSWORD) {
-        // Login exitoso
-        console.log('Login exitoso para:', email)
-        
-        // Resetear contadores
-        setAttemptCount(0)
-        setErrorMessage('')
-        
-        // Redirigir al dashboard
-        router.push('/user/dashboard')
-        
-      } else {
-        // Login fallido
-        const newAttemptCount = attemptCount + 1
-        setAttemptCount(newAttemptCount)
-        
-        if (newAttemptCount >= MAX_ATTEMPTS) {
-          // Bloquear después de 3 intentos
-          setIsBlocked(true)
-          setBlockTimeRemaining(BLOCK_DURATION)
-          setErrorMessage(`Demasiados intentos fallidos. Cuenta bloqueada por ${BLOCK_DURATION / 60} minutos.`)
-        } else {
-          // Mostrar error y intentos restantes
-          const remainingAttempts = MAX_ATTEMPTS - newAttemptCount
-          setErrorMessage(`Credenciales incorrectas. Te quedan ${remainingAttempts} intento${remainingAttempts !== 1 ? 's' : ''}.`)
-        }
+      // Login exitoso - guardar tokens y datos del usuario
+      AuthService.saveAuthData(authResponse)
+      console.log('Login exitoso para:', authResponse.email)
+      
+      // Obtener datos completos del usuario
+      try {
+        const userProfile = await ApiService.getCurrentUserProfile(authResponse.accessToken)
+        AuthService.updateUserData(userProfile)
+      } catch (profileError) {
+        console.warn('No se pudieron obtener los datos del perfil:', profileError)
+        // Continuar sin los datos del perfil, se obtendrán después
       }
       
-    } catch (error) {
+      // Resetear contadores
+      setAttemptCount(0)
+      setErrorMessage('')
+      
+      // Redirigir al dashboard
+      router.push('/user/public-stats')
+      
+    } catch (error: any) {
       console.error('Error en login:', error)
-      setErrorMessage('Error interno del servidor. Intenta nuevamente.')
+      
+      // Incrementar contador de intentos
+      const newAttemptCount = attemptCount + 1
+      setAttemptCount(newAttemptCount)
+      
+      if (newAttemptCount >= MAX_ATTEMPTS) {
+        // Bloquear después de 3 intentos
+        setIsBlocked(true)
+        setBlockTimeRemaining(BLOCK_DURATION)
+        setErrorMessage(`Demasiados intentos fallidos. Cuenta bloqueada por ${BLOCK_DURATION / 60} minutos.`)
+      } else {
+        // Mostrar error específico de la API o genérico
+        const remainingAttempts = MAX_ATTEMPTS - newAttemptCount
+        let errorMsg = 'Credenciales incorrectas.'
+        
+        // Personalizar mensaje según el error de la API
+        if (error.status === 401) {
+          errorMsg = 'Email o contraseña incorrectos.'
+        } else if (error.status === 404) {
+          errorMsg = 'Usuario no encontrado.'
+        } else if (error.status >= 500) {
+          errorMsg = 'Error del servidor. Intenta más tarde.'
+        } else if (error.message) {
+          errorMsg = error.message
+        }
+        
+        setErrorMessage(`${errorMsg} Te quedan ${remainingAttempts} intento${remainingAttempts !== 1 ? 's' : ''}.`)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -169,7 +190,7 @@ export default function LoginPage() {
               </label>              <input 
                 type="email" 
                 id="email" 
-                className={`w-full px-4 py-3 border rounded-lg transition-colors ${
+                className={`w-full px-4 py-3 border rounded-lg transition-colors text-black ${
                   isBlocked 
                     ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
                     : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
@@ -188,7 +209,7 @@ export default function LoginPage() {
               </label>              <input 
                 type="password" 
                 id="password" 
-                className={`w-full px-4 py-3 border rounded-lg transition-colors ${
+                className={`w-full px-4 py-3 border rounded-lg transition-colors text-black ${
                   isBlocked 
                     ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
                     : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
@@ -227,21 +248,8 @@ export default function LoginPage() {
                 : 'Iniciar sesión'
               }
             </button>
-          </form>
-            {/* Enlaces adicionales */}
+          </form>          {/* Enlaces adicionales */}
           <div className="text-center mt-6 space-y-4">
-            {/* Información de prueba */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-              <h4 className="text-sm font-semibold text-blue-900 mb-2">🔑 Credenciales de prueba:</h4>
-              <div className="text-sm text-blue-800 space-y-1">
-                <p><strong>Email:</strong> sebastian1987102@gmail.com</p>
-                <p><strong>Contraseña:</strong> 123456789</p>
-              </div>
-              <p className="text-xs text-blue-600 mt-2">
-                ⚠️ Después de 3 intentos fallidos, la cuenta se bloquea por 5 minutos
-              </p>
-            </div>
-
             <p className="text-gray-600">
               ¿No tienes una cuenta?{' '}
               <Link 
