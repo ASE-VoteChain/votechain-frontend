@@ -35,14 +35,8 @@ export default function PublicStatsPage() {
         setError('')
         const publicStats = await StatisticsService.getPublicStats()
         setStats(publicStats)
-        
-        // Mostrar mensaje informativo si estamos usando datos de fallback
-        if (publicStats._source === 'fallback') {
-          console.log('ℹ️ Mostrando datos de demostración - el backend no está disponible')
-        }
       } catch (error: unknown) {
         console.error('Error cargando estadísticas públicas:', error)
-        // Este catch ya no debería ejecutarse normalmente ya que getPublicStats siempre retorna datos
         setError((error as Error).message || 'Error cargando estadísticas públicas')
       } finally {
         setLoading(false)
@@ -55,17 +49,9 @@ export default function PublicStatsPage() {
   const handleRefreshStats = async () => {
     try {
       setLoading(true)
-      setError('')
       const publicStats = await StatisticsService.getPublicStats()
       setStats(publicStats)
-      
-      // Mostrar mensaje informativo si estamos usando datos de fallback
-      if (publicStats._source === 'fallback') {
-        console.log('ℹ️ Mostrando datos de demostración - el backend no está disponible')
-      }
     } catch (error: unknown) {
-      console.error('Error actualizando estadísticas públicas:', error)
-      // Este catch ya no debería ejecutarse normalmente ya que getPublicStats siempre retorna datos
       setError((error as Error).message || 'Error actualizando estadísticas')
     } finally {
       setLoading(false)
@@ -110,25 +96,6 @@ export default function PublicStatsPage() {
           Descubre la actividad del sistema VoteChain. Estas estadísticas muestran el nivel de participación y engagement de nuestra comunidad de votación.
         </p>
       </div>
-
-      {/* Indicador de datos de demostración */}
-      {stats?._source === 'fallback' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center">
-            <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center mr-3">
-              <span className="text-yellow-800 text-xs font-bold">!</span>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-yellow-800">
-                Mostrando datos de demostración
-              </h3>
-              <p className="text-sm text-yellow-700 mt-1">
-                El servidor backend no está disponible. Los datos mostrados son ejemplos para demostrar la funcionalidad del sistema.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Estadísticas del Sistema */}
       {error ? (

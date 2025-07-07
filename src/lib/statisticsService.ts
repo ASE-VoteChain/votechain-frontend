@@ -78,7 +78,6 @@ export interface PublicStats {
     totalVotos: number
   }>
   generadoEn: string
-  _source?: 'backend' | 'fallback'
 }
 
 class StatisticsService {
@@ -170,17 +169,11 @@ class StatisticsService {
 
   /**
    * Obtiene las estadísticas públicas del sistema (sin autenticación)
-   * Siempre retorna datos, usando fallback si el backend no está disponible
    */
   async getPublicStats(): Promise<PublicStats> {
     try {
       const url = `${BASE_URL}/api/dashboard/public-stats`
       console.log('🔍 Obteniendo estadísticas públicas desde:', url)
-      console.log('🌐 BASE_URL configurada:', BASE_URL)
-      
-      // Añadir timeout para evitar esperas indefinidas
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 segundos timeout
       
       const response = await fetch(url, {
         method: 'GET',
@@ -188,10 +181,7 @@ class StatisticsService {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        signal: controller.signal
       })
-
-      clearTimeout(timeoutId)
 
       console.log('📡 Respuesta del servidor:', {
         status: response.status,
@@ -217,8 +207,7 @@ class StatisticsService {
           }
         }
         
-        console.log('⚠️ Error del servidor, usando datos de fallback para mejor UX')
-        return this.getFallbackPublicStats()
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
@@ -238,27 +227,17 @@ class StatisticsService {
         data.topVotaciones = []
       }
       
-      // Añadir marca de que los datos vienen del backend
-      data._source = 'backend'
-      
       return data
     } catch (error) {
       console.error('❌ Error obteniendo estadísticas públicas:', error)
       
-      // Manejar todos los tipos de errores y siempre usar fallback
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        console.log('⚠️ Error de conectividad: El backend no está disponible o hay problemas de CORS')
-        console.log('🔧 Verifica que el backend esté corriendo en:', BASE_URL)
-      } else if (error instanceof Error && error.name === 'AbortError') {
-        console.log('⚠️ Timeout: El servidor tardó demasiado en responder')
-      } else {
-        console.log('⚠️ Error desconocido:', error)
+      // Si es un error de red o CORS, usar datos de fallback
+      if (error instanceof TypeError || (error as any).name === 'TypeError') {
+        console.log('⚠️ Error de conectividad o CORS. Usando datos de fallback.')
+        return this.getFallbackPublicStats()
       }
       
-      console.log('💡 Usando datos de demostración para mejor experiencia de usuario')
-      const fallbackData = this.getFallbackPublicStats()
-      fallbackData._source = 'fallback'
-      return fallbackData
+      throw error
     }
   }
 

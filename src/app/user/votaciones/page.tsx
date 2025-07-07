@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Vote, 
@@ -21,8 +21,11 @@ import {
   Bell,
   History,
   Hash,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
+import useUser from '@/hooks/useUser';
+import userVotacionService, { VotacionResponse, PageResponse } from '@/lib/userVotacionService';
 
 interface VotacionUsuario {
   id: string;
@@ -30,7 +33,7 @@ interface VotacionUsuario {
   descripcion: string;
   fechaInicio: string;
   fechaFin: string;
-  estado: 'abierta' | 'proxima' | 'cerrada';
+  estado: 'abierta' | 'proxima' | 'cerrada' | 'creada' | 'suspendida' | 'cancelada';
   participantes: number;
   totalElegibles: number;
   hasParticipated: boolean;
@@ -45,123 +48,190 @@ interface VotacionUsuario {
   notificacionesActivas?: boolean;
 }
 
-const mockVotaciones: VotacionUsuario[] = [
-  {
-    id: '1',
-    titulo: 'Elección de representante vecinal',
-    descripcion: 'Esta votación busca elegir al representante vecinal que actuará como enlace entre la comunidad y las autoridades municipales durante el período 2025-2026.',
-    fechaInicio: '2025-05-10',
-    fechaFin: '2025-05-25',
-    estado: 'abierta',
-    participantes: 1650,
-    totalElegibles: 2500,
-    hasParticipated: false,
-    categoria: 'Representación',
-    tipo: 'Elección de representante',
-    ubicacion: 'Sector Norte - Barrio Las Flores',
-    organizador: 'Junta de Acción Comunal',
-    prioridad: 'alta',
-    notificacionesActivas: true
-  },
-  {
-    id: '2',
-    titulo: 'Presupuesto participativo 2025',
-    descripcion: 'Participa en la distribución del presupuesto municipal para proyectos comunitarios. Tus decisiones definirán las prioridades de inversión para el próximo año.',
-    fechaInicio: '2025-05-15',
-    fechaFin: '2025-05-30',
-    estado: 'abierta',
-    participantes: 1125,
-    totalElegibles: 2500,
-    hasParticipated: true,
-    categoria: 'Presupuesto',
-    tipo: 'Asignación de presupuesto',
-    ubicacion: 'Municipal - Toda la ciudad',
-    organizador: 'Alcaldía Municipal',
-    prioridad: 'alta',
-    fechaVoto: '2025-05-16T10:30:00Z',
-    opcionSeleccionada: 'Mejora de parques y espacios verdes',
-    hashTransaccion: '0x8f7d2a3b1c9e6f4a2d8b5c7e9f1a3d6b',
-    notificacionesActivas: false
-  },
-  {
-    id: '3',
-    titulo: 'Consulta ciudadana sobre seguridad',
-    descripcion: 'Consulta finalizada sobre propuestas de mejora para la seguridad en la comunidad. Los resultados están disponibles para conocer las medidas priorizadas por los ciudadanos.',
-    fechaInicio: '2025-04-05',
-    fechaFin: '2025-04-20',
-    estado: 'cerrada',
-    participantes: 1950,
-    totalElegibles: 2500,
-    hasParticipated: true,
-    categoria: 'Seguridad',
-    tipo: 'Consulta ciudadana',
-    ubicacion: 'Municipal - Toda la ciudad',
-    organizador: 'Secretaría de Seguridad',
-    prioridad: 'media',
-    fechaVoto: '2025-04-08T14:15:00Z',
-    opcionSeleccionada: 'Mejora de iluminación pública',
-    hashTransaccion: '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d',
-    notificacionesActivas: false
-  },
-  {
-    id: '4',
-    titulo: 'Consulta sobre transporte público',
-    descripcion: 'Evaluación de propuestas para mejorar el sistema de transporte público de la ciudad. Incluye nuevas rutas y mejoras en frecuencia.',
-    fechaInicio: '2025-06-01',
-    fechaFin: '2025-06-15',
-    estado: 'proxima',
-    participantes: 0,
-    totalElegibles: 3200,
-    hasParticipated: false,
-    categoria: 'Transporte',
-    tipo: 'Consulta pública',
-    ubicacion: 'Municipal - Toda la ciudad',
-    organizador: 'Secretaría de Movilidad',
-    prioridad: 'media',
-    notificacionesActivas: true
-  },
-  {
-    id: '5',
-    titulo: 'Renovación del consejo de administración',
-    descripcion: 'Elección de nuevos miembros para el consejo de administración del conjunto residencial.',
-    fechaInicio: '2025-07-01',
-    fechaFin: '2025-07-15',
-    estado: 'proxima',
-    participantes: 0,
-    totalElegibles: 800,
-    hasParticipated: false,
-    categoria: 'Administración',
-    tipo: 'Elección de consejo',
-    ubicacion: 'Conjunto Residencial Torres del Norte',
-    organizador: 'Administración del Conjunto',
-    prioridad: 'media',
-    notificacionesActivas: false
-  }
-];
-
 export default function VotacionesUsuarioPage() {
+  const { user, loading: userLoading } = useUser();
+  
+  // Estado para datos del backend
+  const [votaciones, setVotaciones] = useState<VotacionUsuario[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [pagination, setPagination] = useState({
+    page: 0,
+    size: 20,
+    totalElements: 0,
+    totalPages: 0
+  });
+
+  // Estado para filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('todas');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroParticipacion, setFiltroParticipacion] = useState('todas');
-  const [vistaActual, setVistaActual] = useState<'todas' | 'participadas' | 'pendientes'>('todas');
+  const [vistaActual, setVistaActual] = useState<'todas' | 'participadas' | 'pendientes' | 'mis-creadas'>('todas');
 
-  const votacionesFiltradas = mockVotaciones.filter(votacion => {
-    const matchSearch = votacion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       votacion.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchEstado = filtroEstado === 'todas' || votacion.estado === filtroEstado;
-    const matchCategoria = filtroCategoria === 'todas' || votacion.categoria === filtroCategoria;
-    const matchParticipacion = filtroParticipacion === 'todas' || 
-      (filtroParticipacion === 'participadas' && votacion.hasParticipated) ||
-      (filtroParticipacion === 'pendientes' && !votacion.hasParticipated);
-    
-    const matchVista = vistaActual === 'todas' ||
-      (vistaActual === 'participadas' && votacion.hasParticipated) ||
-      (vistaActual === 'pendientes' && !votacion.hasParticipated && votacion.estado === 'abierta');
-    
-    return matchSearch && matchEstado && matchCategoria && matchParticipacion && matchVista;
-  });
+  // Cargar votaciones del backend
+  const loadVotaciones = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setErrorDetails(null);
+
+      // Verificar autenticación antes de proceder
+      if (!user) {
+        setError('Debes iniciar sesión para ver las votaciones.');
+        setVotaciones([]);
+        return;
+      }
+
+      let response: PageResponse<VotacionResponse>;
+      
+      const filters = {
+        page: pagination.page,
+        size: pagination.size,
+        search: searchTerm || undefined,
+        estado: filtroEstado !== 'todas' ? filtroEstado.toUpperCase() : undefined,
+        categoria: filtroCategoria !== 'todas' ? filtroCategoria.toUpperCase() : undefined,
+        participated: filtroParticipacion === 'participadas' ? true : 
+                     filtroParticipacion === 'pendientes' ? false : undefined
+      };
+
+      console.log('🔍 Cargando votaciones con filtros:', filters);
+      console.log('👤 Estado de usuario:', {
+        user: !!user,
+        userId: user?.id,
+        email: user?.email,
+        userLoading,
+        isAuthenticated: !!user
+      });
+
+      // Determinar qué endpoint usar (solo para usuarios autenticados)
+      const showMyCreatedVotaciones = vistaActual === 'mis-creadas';
+      const context = userVotacionService.determineContext(!!user, showMyCreatedVotaciones);
+      console.log('📡 Contexto y endpoint:', {
+        context,
+        vistaActual,
+        showMyCreatedVotaciones,
+        endpoint: context === 'user' ? '/api/votaciones/user/votaciones' :
+                 '/api/votaciones/mis-votaciones',
+        requiresAuth: true
+      });
+
+      response = await userVotacionService.getVotaciones(context, filters);
+
+      // Mapear datos del backend al formato esperado por el frontend
+      const votacionesMapeadas: VotacionUsuario[] = response.content.map(votacion => ({
+        ...votacion,
+        id: votacion.id.toString(),
+        estado: userVotacionService.mapEstado(votacion.estado) as any,
+        categoria: userVotacionService.mapCategoria(votacion.categoria),
+        prioridad: userVotacionService.mapPrioridad(votacion.prioridad) as any,
+        fechaInicio: userVotacionService.formatDate(votacion.fechaInicio),
+        fechaFin: userVotacionService.formatDate(votacion.fechaFin),
+        participantes: votacion.participantes || 0,
+        totalElegibles: votacion.totalElegibles || 0,
+        hasParticipated: votacion.hasParticipated || false,
+        tipo: votacion.categoria || 'Votación',
+        ubicacion: votacion.ubicacion || 'No especificada',
+        organizador: votacion.organizador || 'Sistema',
+        notificacionesActivas: false, // Se puede implementar más tarde
+        opcionSeleccionada: votacion.userVote?.opcionTitulo,
+        hashTransaccion: votacion.userVote?.hashTransaccion,
+        fechaVoto: votacion.userVote?.fechaVoto
+      }));
+
+      setVotaciones(votacionesMapeadas);
+      setPagination({
+        page: response.number,
+        size: response.size,
+        totalElements: response.totalElements,
+        totalPages: response.totalPages
+      });
+
+      console.log('✅ Votaciones cargadas exitosamente:', {
+        total: response.totalElements,
+        pagina: response.number + 1,
+        totalPaginas: response.totalPages,
+        contexto: context
+      });
+
+    } catch (err) {
+      console.error('❌ Error detallado cargando votaciones:', err);
+      
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido cargando votaciones';
+      setError(errorMessage);
+      setErrorDetails({
+        originalError: err,
+        timestamp: new Date().toISOString(),
+        context: {
+          user: !!user,
+          filters: {
+            page: pagination.page,
+            size: pagination.size,
+            searchTerm,
+            filtroEstado,
+            filtroCategoria,
+            filtroParticipacion
+          }
+        }
+      });
+      
+      // En caso de error, usar array vacío
+      setVotaciones([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar votaciones al montar el componente y cuando cambien los filtros
+  useEffect(() => {
+    console.log('📊 useEffect: Evaluando si cargar votaciones', {
+      userLoading,
+      user: !!user,
+      userId: user?.id,
+      page: pagination.page,
+      filtros: { filtroEstado, filtroCategoria, filtroParticipacion }
+    });
+
+    // Solo cargar si el usuario no está en estado de carga
+    if (!userLoading) {
+      if (user) {
+        console.log('📊 useEffect: Usuario autenticado, cargando votaciones...');
+        loadVotaciones();
+      } else {
+        console.log('📊 useEffect: Usuario no autenticado, limpiando estado...');
+        setVotaciones([]);
+        setError('');
+        setErrorDetails(null);
+        setLoading(false);
+      }
+    }
+  }, [user, userLoading, pagination.page, filtroEstado, filtroCategoria, filtroParticipacion]);
+
+  // Cargar votaciones cuando cambie la vista actual
+  useEffect(() => {
+    if (!userLoading && user) {
+      console.log('👁️ useEffect vista: Cambiando vista actual a:', vistaActual);
+      setPagination(prev => ({ ...prev, page: 0 }));
+      loadVotaciones();
+    }
+  }, [vistaActual, user, userLoading]);
+
+  // Buscar cuando el usuario termine de escribir
+  useEffect(() => {
+    if (!userLoading && user) {
+      const timeoutId = setTimeout(() => {
+        console.log('🔍 useEffect búsqueda: Ejecutando búsqueda con término:', searchTerm);
+        if (pagination.page === 0) {
+          loadVotaciones();
+        } else {
+          setPagination(prev => ({ ...prev, page: 0 }));
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchTerm, user, userLoading]);
 
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
@@ -184,6 +254,27 @@ export default function VotacionesUsuarioPage() {
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
             <XCircle className="w-3 h-3 mr-1" />
             Cerrada
+          </span>
+        );
+      case 'creada':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            <Clock className="w-3 h-3 mr-1" />
+            Creada
+          </span>
+        );
+      case 'suspendida':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+            <XCircle className="w-3 h-3 mr-1" />
+            Suspendida
+          </span>
+        );
+      case 'cancelada':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <XCircle className="w-3 h-3 mr-1" />
+            Cancelada
           </span>
         );
       default:
@@ -216,7 +307,8 @@ export default function VotacionesUsuarioPage() {
     }
   };
 
-  const getParticipationRate = (participantes: number, total: number) => {
+  const getParticipationRate = (participantes: number | undefined, total: number | undefined) => {
+    if (!participantes || !total || total === 0) return 0;
     return Math.round((participantes / total) * 100);
   };
 
@@ -240,11 +332,55 @@ export default function VotacionesUsuarioPage() {
     });
   };
 
-  const categorias = ['todas', ...Array.from(new Set(mockVotaciones.map(v => v.categoria)))];
-  const votacionesAbiertas = mockVotaciones.filter(v => v.estado === 'abierta');
-  const votacionesProximas = mockVotaciones.filter(v => v.estado === 'proxima');
-  const votacionesParticipadas = mockVotaciones.filter(v => v.hasParticipated);
-  const votacionesCerradas = mockVotaciones.filter(v => v.estado === 'cerrada');
+  // Funciones calculadas basadas en los datos reales
+  const categorias = ['todas', ...Array.from(new Set(votaciones.map((v: VotacionUsuario) => v.categoria)))];
+  const votacionesAbiertas = votaciones.filter((v: VotacionUsuario) => v.estado === 'abierta');
+  const votacionesProximas = votaciones.filter((v: VotacionUsuario) => v.estado === 'proxima');
+  const votacionesParticipadas = votaciones.filter((v: VotacionUsuario) => v.hasParticipated);
+  const votacionesCerradas = votaciones.filter((v: VotacionUsuario) => v.estado === 'cerrada');
+
+  // Aplicar filtros a las votaciones actuales
+  const votacionesFiltradas = votaciones.filter((votacion: VotacionUsuario) => {
+    // Filtro por vista actual
+    if (vistaActual === 'pendientes' && (votacion.estado !== 'abierta' || votacion.hasParticipated)) {
+      return false;
+    }
+    if (vistaActual === 'participadas' && !votacion.hasParticipated) {
+      return false;
+    }
+    if (vistaActual === 'mis-creadas') {
+      // Para mis votaciones creadas, no aplicamos filtros adicionales ya que el endpoint ya filtra
+      // Pero podríamos agregar lógica adicional aquí si fuera necesario
+    }
+
+    // Filtro por búsqueda
+    if (searchTerm && !votacion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) && 
+        !votacion.descripcion.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+
+    // Filtro por estado
+    if (filtroEstado !== 'todas' && votacion.estado !== filtroEstado) {
+      return false;
+    }
+
+    // Filtro por categoría
+    if (filtroCategoria !== 'todas' && votacion.categoria !== filtroCategoria) {
+      return false;
+    }
+
+    // Filtro por participación (solo aplicable cuando no estamos viendo mis votaciones creadas)
+    if (vistaActual !== 'mis-creadas') {
+      if (filtroParticipacion === 'participadas' && !votacion.hasParticipated) {
+        return false;
+      }
+      if (filtroParticipacion === 'pendientes' && votacion.hasParticipated) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -265,6 +401,122 @@ export default function VotacionesUsuarioPage() {
         </div>
       </div>
 
+      {/* Loading state para usuario */}
+      {userLoading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="text-gray-600">Verificando autenticación...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Estado no autenticado */}
+      {!userLoading && !user && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <AlertCircle className="w-6 h-6 text-yellow-400" />
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-lg font-medium text-yellow-900 mb-2">Autenticación requerida</h3>
+              <p className="text-yellow-700 mb-4">
+                Debes iniciar sesión para ver las votaciones disponibles.
+              </p>
+              <div className="flex gap-2">
+                <Link
+                  href="/auth/login"
+                  className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-lg hover:bg-yellow-700 transition-colors"
+                >
+                  Iniciar sesión
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Registrarse
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Content - only show if user is authenticated */}
+      {!userLoading && user && (
+        <>
+      {/* Loading state */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="text-gray-600">Cargando votaciones...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && !loading && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <AlertCircle className="w-6 h-6 text-red-400" />
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-lg font-medium text-red-900 mb-2">Error al cargar votaciones</h3>
+              <p className="text-red-700 mb-4">{error}</p>
+              
+              {errorDetails && (
+                <details className="mb-4">
+                  <summary className="text-sm text-red-600 cursor-pointer hover:text-red-800 mb-2">
+                    Ver detalles técnicos
+                  </summary>
+                  <div className="bg-red-100 rounded p-3 text-xs font-mono text-red-800 overflow-auto max-h-40">
+                    <div><strong>Timestamp:</strong> {errorDetails.timestamp}</div>
+                    <div><strong>Usuario autenticado:</strong> {errorDetails.context.user ? 'Sí' : 'No'}</div>
+                    <div><strong>Filtros:</strong> {JSON.stringify(errorDetails.context.filters, null, 2)}</div>
+                    {errorDetails.originalError && (
+                      <div><strong>Error original:</strong> {JSON.stringify(errorDetails.originalError, null, 2)}</div>
+                    )}
+                  </div>
+                </details>
+              )}
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => loadVotaciones()}
+                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Reintentar
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setError('');
+                    setErrorDetails(null);
+                    // Reset filters
+                    setSearchTerm('');
+                    setFiltroEstado('todas');
+                    setFiltroCategoria('todas');
+                    setFiltroParticipacion('todas');
+                    setVistaActual('todas');
+                    setPagination(prev => ({ ...prev, page: 0 }));
+                    setPagination(prev => ({ ...prev, page: 0 }));
+                  }}
+                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Limpiar y reiniciar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Content - only show if not loading and no error */}
+      {!loading && !error && (
+        <>
       {/* Dashboard de estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow p-6 text-white">
@@ -303,7 +555,7 @@ export default function VotacionesUsuarioPage() {
               <p className="text-purple-100 text-sm font-medium">Participadas</p>
               <p className="text-3xl font-bold">{votacionesParticipadas.length}</p>
               <p className="text-purple-100 text-xs mt-1">
-                {Math.round((votacionesParticipadas.length / mockVotaciones.length) * 100)}% del total
+                {votaciones.length > 0 ? Math.round((votacionesParticipadas.length / votaciones.length) * 100) : 0}% del total
               </p>
             </div>
             <div className="p-3 bg-purple-400 bg-opacity-30 rounded-lg">
@@ -341,7 +593,7 @@ export default function VotacionesUsuarioPage() {
           >
             Todas las votaciones
             <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs font-medium">
-              {mockVotaciones.length}
+              {votaciones.length}
             </span>
           </button>
           <button
@@ -370,6 +622,21 @@ export default function VotacionesUsuarioPage() {
               {votacionesParticipadas.length}
             </span>
           </button>
+          {user && (
+            <button
+              onClick={() => setVistaActual('mis-creadas')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                vistaActual === 'mis-creadas'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Mis Votaciones
+              <span className="ml-2 bg-purple-100 text-purple-800 py-0.5 px-2.5 rounded-full text-xs font-medium">
+                {vistaActual === 'mis-creadas' ? votaciones.length : '?'}
+              </span>
+            </button>
+          )}
         </nav>
       </div>
 
@@ -607,7 +874,7 @@ export default function VotacionesUsuarioPage() {
       </div>
 
       {/* Mensaje si no hay resultados */}
-      {votacionesFiltradas.length === 0 && (
+      {!loading && !error && votacionesFiltradas.length === 0 && (
         <div className="text-center py-12">
           <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <AlertCircle className="w-12 h-12 text-gray-400" />
@@ -618,9 +885,11 @@ export default function VotacionesUsuarioPage() {
           <p className="text-gray-500 mb-4">
             {vistaActual === 'pendientes' && 'No tienes votaciones pendientes por participar.'}
             {vistaActual === 'participadas' && 'Aún no has participado en ninguna votación.'}
-            {vistaActual === 'todas' && 'Intenta ajustar los filtros de búsqueda para encontrar lo que buscas.'}
+            {vistaActual === 'mis-creadas' && 'No has creado ninguna votación aún.'}
+            {vistaActual === 'todas' && votaciones.length === 0 && 'No hay votaciones disponibles en este momento.'}
+            {vistaActual === 'todas' && votaciones.length > 0 && 'Intenta ajustar los filtros de búsqueda para encontrar lo que buscas.'}
           </p>
-          {vistaActual !== 'todas' && (
+          {vistaActual !== 'todas' && vistaActual !== 'mis-creadas' && (
             <button
               onClick={() => setVistaActual('todas')}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
@@ -629,16 +898,25 @@ export default function VotacionesUsuarioPage() {
               <ArrowRight className="w-4 h-4 ml-2" />
             </button>
           )}
+          {vistaActual === 'mis-creadas' && (
+            <Link
+              href="/user/crear-votacion"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Crear mi primera votación
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
+          )}
         </div>
       )}
 
       {/* Call to Action para votaciones abiertas */}
-      {vistaActual === 'todas' && votacionesAbiertas.filter(v => !v.hasParticipated).length > 0 && (
+      {!loading && !error && vistaActual === 'todas' && votacionesAbiertas.filter((v: VotacionUsuario) => !v.hasParticipated).length > 0 && (
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold mb-2">
-                ¡Tienes {votacionesAbiertas.filter(v => !v.hasParticipated).length} votación{votacionesAbiertas.filter(v => !v.hasParticipated).length !== 1 ? 'es' : ''} pendiente{votacionesAbiertas.filter(v => !v.hasParticipated).length !== 1 ? 's' : ''}!
+                ¡Tienes {votacionesAbiertas.filter((v: VotacionUsuario) => !v.hasParticipated).length} votación{votacionesAbiertas.filter((v: VotacionUsuario) => !v.hasParticipated).length !== 1 ? 'es' : ''} pendiente{votacionesAbiertas.filter((v: VotacionUsuario) => !v.hasParticipated).length !== 1 ? 's' : ''}!
               </h3>
               <p className="text-blue-100">
                 Tu voz es importante. Participa en las votaciones abiertas y contribuye a las decisiones de tu comunidad.
@@ -654,6 +932,36 @@ export default function VotacionesUsuarioPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Paginación */}
+      {!loading && !error && pagination.totalPages > 1 && (
+        <div className="flex justify-center items-center space-x-4 py-6">
+          <button
+            onClick={() => setPagination(prev => ({ ...prev, page: Math.max(0, prev.page - 1) }))}
+            disabled={pagination.page === 0}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Anterior
+          </button>
+          
+          <span className="text-sm text-gray-600">
+            Página {pagination.page + 1} de {pagination.totalPages} 
+            ({pagination.totalElements} votaciones total)
+          </span>
+          
+          <button
+            onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.totalPages - 1, prev.page + 1) }))}
+            disabled={pagination.page >= pagination.totalPages - 1}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
+        </>
+      )}
+      </>
       )}
     </div>
   );

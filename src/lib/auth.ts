@@ -16,6 +16,10 @@ export class AuthService {
         email: authData.email,
         tokenType: authData.tokenType
       }))
+      
+      // Disparar evento personalizado para notificar cambios de autenticación
+      console.log('🔐 AuthService: Tokens guardados, disparando evento de autenticación')
+      window.dispatchEvent(new CustomEvent('votechain-auth-changed'))
     }
   }
 
@@ -35,14 +39,25 @@ export class AuthService {
         lastLogin: userData.lastLogin
       }
       localStorage.setItem(this.USER_DATA_KEY, JSON.stringify(updatedData))
+      
+      // NO disparar evento aquí para evitar bucles infinitos
+      console.log('🔐 AuthService: Datos de usuario actualizados (sin evento)')
     }
   }
 
   // Obtener token de acceso
   static getAccessToken(): string | null {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(this.ACCESS_TOKEN_KEY)
+      const token = localStorage.getItem(this.ACCESS_TOKEN_KEY)
+      console.log('🔐 AuthService.getAccessToken():', {
+        hasToken: !!token,
+        tokenLength: token ? token.length : 0,
+        tokenPreview: token ? `${token.substring(0, 10)}...` : 'No token',
+        isWindows: true
+      })
+      return token
     }
+    console.log('🔐 AuthService.getAccessToken(): No está en window (SSR)')
     return null
   }
 
@@ -65,7 +80,14 @@ export class AuthService {
 
   // Verificar si el usuario está autenticado
   static isAuthenticated(): boolean {
-    return !!this.getAccessToken()
+    const token = this.getAccessToken()
+    const isAuth = !!token
+    console.log('🔐 AuthService.isAuthenticated():', {
+      isAuthenticated: isAuth,
+      hasToken: !!token,
+      tokenLength: token ? token.length : 0
+    })
+    return isAuth
   }
 
   // Limpiar todos los datos de autenticación
@@ -74,6 +96,10 @@ export class AuthService {
       localStorage.removeItem(this.ACCESS_TOKEN_KEY)
       localStorage.removeItem(this.REFRESH_TOKEN_KEY)
       localStorage.removeItem(this.USER_DATA_KEY)
+      
+      // Disparar evento personalizado para notificar logout
+      console.log('🔐 AuthService: Logout realizado, disparando evento de autenticación')
+      window.dispatchEvent(new CustomEvent('votechain-auth-changed'))
     }
   }
 
