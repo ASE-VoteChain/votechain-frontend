@@ -22,10 +22,12 @@ import {
   History,
   Hash,
   ExternalLink,
-  Loader2
+  Loader2,
+  Shield
 } from 'lucide-react';
 import useUser from '@/hooks/useUser';
 import userVotacionService, { VotacionResponse, PageResponse } from '@/lib/userVotacionService';
+import voteHistoryService, { VoteHistoryResponse } from '@/lib/voteHistoryService';
 
 interface VotacionUsuario {
   id: string;
@@ -45,7 +47,21 @@ interface VotacionUsuario {
   fechaVoto?: string;
   opcionSeleccionada?: string;
   hashTransaccion?: string;
+  voteHash?: string;
+  blockchainStatus?: 'PENDING' | 'VERIFIED' | 'FAILED';
+  blockchainVerifiedAt?: string;
+  voteStatus?: 'CONFIRMED' | 'PENDING' | 'REJECTED';
   notificacionesActivas?: boolean;
+  opciones?: {
+    id: number;
+    titulo: string;
+    descripcion: string;
+    orden: number;
+    totalVotos: number;
+    porcentaje: number;
+  }[];
+  totalVotos: number;
+  blockchainTransactionHash?: string;
 }
 
 export default function VotacionesUsuarioPage() {
@@ -53,6 +69,7 @@ export default function VotacionesUsuarioPage() {
   
   // Estado para datos del backend
   const [votaciones, setVotaciones] = useState<VotacionUsuario[]>([]);
+  const [userVoteHistory, setUserVoteHistory] = useState<VoteHistoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [errorDetails, setErrorDetails] = useState<any>(null);
@@ -119,26 +136,64 @@ export default function VotacionesUsuarioPage() {
 
       response = await userVotacionService.getVotaciones(context, filters);
 
+      // Cargar historial de votos del usuario para enriquecer la información
+      let userVotes: VoteHistoryResponse[] = [];
+      try {
+        console.log('📊 Cargando historial de votos del usuario...');
+        const voteHistoryResponse = await voteHistoryService.getUserVoteHistory({
+          page: 0,
+          size: 100 // Cargar bastantes para tener información completa
+        });
+        userVotes = voteHistoryResponse.content;
+        setUserVoteHistory(userVotes);
+        console.log('✅ Historial de votos cargado:', userVotes.length, 'votos');
+      } catch (voteHistoryError) {
+        console.warn('⚠️ No se pudo cargar el historial de votos:', voteHistoryError);
+        // No es crítico, continuamos sin esta información
+      }
+
       // Mapear datos del backend al formato esperado por el frontend
-      const votacionesMapeadas: VotacionUsuario[] = response.content.map(votacion => ({
-        ...votacion,
-        id: votacion.id.toString(),
-        estado: userVotacionService.mapEstado(votacion.estado) as any,
-        categoria: userVotacionService.mapCategoria(votacion.categoria),
-        prioridad: userVotacionService.mapPrioridad(votacion.prioridad) as any,
-        fechaInicio: userVotacionService.formatDate(votacion.fechaInicio),
-        fechaFin: userVotacionService.formatDate(votacion.fechaFin),
-        participantes: votacion.participantes || 0,
-        totalElegibles: votacion.totalElegibles || 0,
-        hasParticipated: votacion.hasParticipated || false,
-        tipo: votacion.categoria || 'Votación',
-        ubicacion: votacion.ubicacion || 'No especificada',
-        organizador: votacion.organizador || 'Sistema',
-        notificacionesActivas: false, // Se puede implementar más tarde
-        opcionSeleccionada: votacion.userVote?.opcionTitulo,
-        hashTransaccion: votacion.userVote?.hashTransaccion,
-        fechaVoto: votacion.userVote?.fechaVoto
-      }));
+      const votacionesMapeadas: VotacionUsuario[] = response.content.map(votacion => {
+        // Buscar información detallada del voto del usuario en el historial
+        const userVoteDetail = userVotes.find(vote => vote.votacionId === votacion.id);
+
+        return {
+          ...votacion,
+          id: votacion.id.toString(),
+          estado: userVotacionService.mapEstado(votacion.estado) as any,
+          categoria: userVotacionService.mapCategoria(votacion.categoria),
+          prioridad: userVotacionService.mapPrioridad(votacion.prioridad) as any,
+          fechaInicio: userVotacionService.formatDate(votacion.fechaInicio),
+          fechaFin: userVotacionService.formatDate(votacion.fechaFin),
+          participantes: votacion.participantes || 0,
+          totalElegibles: votacion.totalElegibles || 0,
+          hasParticipated: votacion.hasParticipated || false,
+          tipo: votacion.categoria || 'Votación',
+          ubicacion: votacion.ubicacion || 'No especificada',
+          organizador: votacion.organizador || 'Sistema',
+          notificacionesActivas: false, // Se puede implementar más tarde
+          // Información básica del voto (del endpoint de votaciones)
+          opcionSeleccionada: votacion.userVote?.opcionTitulo || userVoteDetail?.opcionTitulo,
+          hashTransaccion: votacion.userVote?.hashTransaccion || userVoteDetail?.blockchainTransactionHash,
+          fechaVoto: votacion.userVote?.fechaVoto || userVoteDetail?.createdAt,
+          // Información detallada del voto (del historial)
+          voteHash: userVoteDetail?.voteHash,
+          blockchainStatus: userVoteDetail?.blockchainStatus,
+          blockchainVerifiedAt: userVoteDetail?.blockchainVerifiedAt,
+          voteStatus: userVoteDetail?.status,
+          // Nuevas propiedades para estadísticas
+          opciones: votacion.opciones?.map(opcion => ({
+            id: opcion.id,
+            titulo: opcion.titulo,
+            descripcion: opcion.descripcion,
+            orden: opcion.orden,
+            totalVotos: opcion.totalVotos || 0,
+            porcentaje: opcion.porcentaje || 0
+          })) || [],
+          totalVotos: votacion.totalVotos || 0,
+          blockchainTransactionHash: votacion.blockchainTransactionHash
+        };
+      });
 
       setVotaciones(votacionesMapeadas);
       setPagination({
@@ -525,7 +580,7 @@ export default function VotacionesUsuarioPage() {
               <p className="text-green-100 text-sm font-medium">Abiertas</p>
               <p className="text-3xl font-bold">{votacionesAbiertas.length}</p>
               <p className="text-green-100 text-xs mt-1">
-                {votacionesAbiertas.filter(v => !v.hasParticipated).length} pendientes
+                {votacionesAbiertas.filter(v => !v.hasParticipated).length} pendientes de votar
               </p>
             </div>
             <div className="p-3 bg-green-400 bg-opacity-30 rounded-lg">
@@ -540,7 +595,7 @@ export default function VotacionesUsuarioPage() {
               <p className="text-blue-100 text-sm font-medium">Próximas</p>
               <p className="text-3xl font-bold">{votacionesProximas.length}</p>
               <p className="text-blue-100 text-xs mt-1">
-                {votacionesProximas.filter(v => v.notificacionesActivas).length} con notificaciones
+                programadas para pronto
               </p>
             </div>
             <div className="p-3 bg-blue-400 bg-opacity-30 rounded-lg">
@@ -555,7 +610,7 @@ export default function VotacionesUsuarioPage() {
               <p className="text-purple-100 text-sm font-medium">Participadas</p>
               <p className="text-3xl font-bold">{votacionesParticipadas.length}</p>
               <p className="text-purple-100 text-xs mt-1">
-                {votaciones.length > 0 ? Math.round((votacionesParticipadas.length / votaciones.length) * 100) : 0}% del total
+                {votacionesParticipadas.filter(v => v.blockchainStatus === 'VERIFIED').length} verificadas en blockchain
               </p>
             </div>
             <div className="p-3 bg-purple-400 bg-opacity-30 rounded-lg">
@@ -570,7 +625,7 @@ export default function VotacionesUsuarioPage() {
               <p className="text-gray-100 text-sm font-medium">Cerradas</p>
               <p className="text-3xl font-bold">{votacionesCerradas.length}</p>
               <p className="text-gray-100 text-xs mt-1">
-                Resultados disponibles
+                {votacionesCerradas.reduce((total, v) => total + (v.totalVotos || 0), 0)} votos totales
               </p>
             </div>
             <div className="p-3 bg-gray-400 bg-opacity-30 rounded-lg">
@@ -774,23 +829,76 @@ export default function VotacionesUsuarioPage() {
 
                 {/* Información de participación del usuario */}
                 {votacion.hasParticipated && (
-                  <div className="bg-green-50 rounded-lg p-4 space-y-2">
+                  <div className="bg-green-50 rounded-lg p-4 space-y-3">
                     <h4 className="font-medium text-green-900 flex items-center">
                       <History className="w-4 h-4 mr-2" />
                       Tu participación
                     </h4>
-                    <div className="text-sm text-green-800 space-y-1">
-                      <p><strong>Fecha:</strong> {votacion.fechaVoto ? formatDateTime(votacion.fechaVoto) : 'No disponible'}</p>
-                      <p><strong>Opción:</strong> {votacion.opcionSeleccionada || 'No disponible'}</p>
-                      {votacion.hashTransaccion && (
-                        <div className="flex items-center">
-                          <Hash className="w-3 h-3 mr-1" />
-                          <span className="font-mono text-xs break-all">{votacion.hashTransaccion}</span>
-                          <button className="ml-2 text-green-600 hover:text-green-700">
-                            <ExternalLink className="w-3 h-3" />
-                          </button>
+                    <div className="text-sm text-green-800 space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <p><strong>Fecha de voto:</strong></p>
+                          <p className="text-green-700">
+                            {votacion.fechaVoto ? voteHistoryService.formatDate(votacion.fechaVoto) : 'No disponible'}
+                          </p>
                         </div>
-                      )}
+                        <div>
+                          <p><strong>Opción seleccionada:</strong></p>
+                          <p className="text-green-700">{votacion.opcionSeleccionada || 'No disponible'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Estadísticas de votos por opción */}
+                {votacion.opciones && votacion.opciones.length > 0 && votacion.totalVotos > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <h4 className="font-medium text-gray-900 flex items-center justify-between">
+                      <span className="flex items-center">
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        Resultados actuales
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        {votacion.totalVotos} votos totales
+                      </span>
+                    </h4>
+                    <div className="space-y-2">
+                      {votacion.opciones
+                        .sort((a, b) => b.totalVotos - a.totalVotos)
+                        .map((opcion) => (
+                          <div key={opcion.id} className="space-y-1">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="font-medium text-gray-700 truncate">
+                                {opcion.titulo}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">
+                                  {opcion.totalVotos} votos
+                                </span>
+                                <span className="font-semibold text-gray-900 min-w-[3rem] text-right">
+                                  {opcion.porcentaje.toFixed(1)}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full transition-all duration-300 ${
+                                  votacion.opcionSeleccionada === opcion.titulo
+                                    ? 'bg-green-500'
+                                    : 'bg-blue-500'
+                                }`}
+                                style={{ width: `${opcion.porcentaje}%` }}
+                              ></div>
+                            </div>
+                            {votacion.opcionSeleccionada === opcion.titulo && (
+                              <div className="flex items-center text-xs text-green-600">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Tu voto
+                              </div>
+                            )}
+                          </div>
+                        ))}
                     </div>
                   </div>
                 )}

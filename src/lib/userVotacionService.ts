@@ -45,6 +45,7 @@ export interface VotacionResponse {
   }
   participantes?: number
   totalElegibles?: number
+  totalVotos?: number
   blockchainVotingId?: number
   blockchainTransactionHash?: string
   blockchainVerified?: boolean
@@ -203,7 +204,7 @@ class UserVotacionService {
       if (filters.page !== undefined) params.append('page', filters.page.toString())
       if (filters.size !== undefined) params.append('size', filters.size.toString())
 
-      const url = `${BASE_URL}/votaciones/mis-votaciones?${params.toString()}`
+      const url = `${BASE_URL}/api/votaciones/mis-votaciones?${params.toString()}`
       console.log('🔍 Obteniendo mis votaciones creadas:', url)
       
       const headers = {

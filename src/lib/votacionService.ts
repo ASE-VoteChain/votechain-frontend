@@ -129,7 +129,7 @@ class VotacionService {
         throw new Error('No estás autenticado.')
       }
 
-      const url = `${BASE_URL}/votaciones/mis-votaciones?page=${page}&size=${size}`
+      const url = `${BASE_URL}/api/votaciones/mis-votaciones?page=${page}&size=${size}`
       console.log('🔍 Obteniendo mis votaciones:', url)
 
       const response = await fetch(url, {
