@@ -732,7 +732,7 @@ class UserVotacionService {
 
       console.log('❌ Cancelando votación:', { votacionId, motivo })
       
-      const response = await fetch(`${BASE_URL}/votaciones/votaciones/${votacionId}/cancelar?motivo=${encodeURIComponent(motivo)}`, {
+      const response = await fetch(`${BASE_URL}/api/votaciones/votaciones/${votacionId}/cancelar?motivo=${encodeURIComponent(motivo)}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
