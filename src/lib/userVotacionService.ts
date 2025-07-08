@@ -89,6 +89,143 @@ export interface VotacionFilters {
   search?: string
 }
 
+// Interfaces para administración de votaciones
+export interface FinalizarVotacionResponse {
+  success: boolean;
+  message: string;
+  votacion: VotacionResponse;
+  resultados: {
+    totalVotos: number;
+    ganador: string;
+    hayEmpate: boolean;
+    votosGanadora: number;
+    ganadoras: string[];
+    fechaFinalizacion: string;
+    duracionHoras: number;
+    participacionPromedio: number;
+    totalOpciones: number;
+    distribucionVotos: Record<string, number>;
+    distribucionPorcentajes: Record<string, number>;
+    blockchain: {
+      finalizeHash: string | null;
+      blockchainSuccess: boolean;
+      verified: boolean;
+      blockchainVotingId: number | null;
+    };
+  };
+  opcionesDetalladas: Record<string, {
+    porcentaje: number;
+    votos: number;
+  }>;
+  blockchain: {
+    blockchainVerified: boolean;
+    verificationPercentage: number;
+    totalVotes: number;
+    verifiedAt: string | null;
+    blockchainStatus: string;
+    verifiedVotes: number;
+    pendingVotes: number;
+    rejectedVotes: number;
+    blockchainVotingId: number | null;
+    transactionHash: string | null;
+  };
+  estadisticasParticipacion: {
+    totalVotos: number;
+    totalUsuariosElegibles: number;
+    participacionPorcentaje: number;
+  };
+  analisisGanador: {
+    opcion: string;
+    esVictoriaDefinitiva: boolean;
+    porcentaje: number;
+    votos: number;
+    margenVictoria: {
+      votosSegundoLugar: number;
+      porcentajeMargen: number;
+      diferencia: number;
+    };
+  };
+  tendenciaTemporal: Record<string, number>;
+  actividadReciente: Array<{
+    blockchainVerified: boolean;
+    voteHash: string;
+    timestamp: string;
+    status: string;
+  }>;
+  esVotacionFinalizada: boolean;
+  finalizadoEn: string;
+}
+
+export interface AdministrarVotacionResponse {
+  success: boolean;
+  message: string;
+  votacion: VotacionResponse;
+}
+
+// Interfaces para estadísticas de votaciones
+export interface EstadisticasVotacionResponse {
+  votacion: {
+    id: number;
+    titulo: string;
+    descripcion: string;
+    categoria: string;
+    estado: string;
+    fechaInicio: string;
+    fechaFin: string;
+    organizador: string;
+    blockchainTransactionHash: string | null;
+    blockchainVotingId: number | null;
+  };
+  distribucionOpciones: Record<string, {
+    porcentaje: number;
+    votos: number;
+  }>;
+  estadisticasBasicas: {
+    votacionActiva: boolean;
+    totalVotos: number;
+    totalUsuariosElegibles: number;
+    participacionPorcentaje: number;
+  };
+  blockchain: {
+    blockchainVerified: boolean;
+    verificationPercentage: number;
+    totalVotes: number;
+    verifiedAt: string | null;
+    blockchainStatus: string;
+    verifiedVotes: number;
+    pendingVotes: number;
+    rejectedVotes: number;
+    blockchainVotingId: number | null;
+    transactionHash: string | null;
+  };
+  estadisticasAdicionales: {
+    duracionTotal: {
+      horas: number;
+      dias: number;
+    };
+    horaConMasVotos: string;
+    tiempoRestante: {
+      horas: number;
+      dias: number;
+      minutos: number;
+      activa: boolean;
+    };
+    promedioVotosPorHora: number;
+  };
+  tendenciaTemporal: Record<string, number>;
+  ganador: {
+    porcentaje: number;
+    votos: number;
+    opcion: string;
+  };
+  actividadReciente: Array<{
+    userHash: string;
+    blockchainVerified: boolean;
+    timestamp: string;
+  }>;
+  generadoEn: string;
+}
+
 class UserVotacionService {
   
   /**
@@ -472,6 +609,186 @@ class UserVotacionService {
       return 0
     }
     return Math.round((votacion.participantes / votacion.totalElegibles) * 100)
+  }
+
+  /**
+   * 8. Finalizar una votación (solo para creadores)
+   * POST /api/votaciones/votaciones/{id}/finalizar
+   */
+  async finalizarVotacion(votacionId: number): Promise<FinalizarVotacionResponse> {
+    try {
+      const token = AuthService.getAccessToken()
+      if (!token) {
+        throw new Error('Token de autenticación requerido')
+      }
+
+      console.log('🏁 Finalizando votación:', votacionId)
+      
+      const response = await fetch(`${BASE_URL}/api/votaciones/votaciones/${votacionId}/finalizar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`)
+      }
+
+      const data: FinalizarVotacionResponse = await response.json()
+      console.log('✅ Votación finalizada exitosamente:', data)
+      return data
+
+    } catch (error) {
+      console.error('❌ Error finalizando votación:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 9. Suspender una votación (solo para creadores)
+   * POST /api/votaciones/votaciones/{id}/suspender?motivo={motivo}
+   */
+  async suspenderVotacion(votacionId: number, motivo: string): Promise<AdministrarVotacionResponse> {
+    try {
+      const token = AuthService.getAccessToken()
+      if (!token) {
+        throw new Error('Token de autenticación requerido')
+      }
+
+      console.log('⏸️ Suspendiendo votación:', { votacionId, motivo })
+      
+      const response = await fetch(`${BASE_URL}/api/votaciones/votaciones/${votacionId}/suspender?motivo=${encodeURIComponent(motivo)}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`)
+      }
+
+      const data: AdministrarVotacionResponse = await response.json()
+      console.log('✅ Votación suspendida exitosamente:', data)
+      return data
+
+    } catch (error) {
+      console.error('❌ Error suspendiendo votación:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 10. Reanudar una votación (solo para creadores)
+   * POST /api/votaciones/votaciones/{id}/reanudar
+   */
+  async reanudarVotacion(votacionId: number): Promise<AdministrarVotacionResponse> {
+    try {
+      const token = AuthService.getAccessToken()
+      if (!token) {
+        throw new Error('Token de autenticación requerido')
+      }
+
+      console.log('▶️ Reanudando votación:', votacionId)
+      
+      const response = await fetch(`${BASE_URL}/api/votaciones/votaciones/${votacionId}/reanudar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`)
+      }
+
+      const data: AdministrarVotacionResponse = await response.json()
+      console.log('✅ Votación reanudada exitosamente:', data)
+      return data
+
+    } catch (error) {
+      console.error('❌ Error reanudando votación:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 11. Cancelar una votación (solo para creadores)
+   * POST /api/votaciones/votaciones/{id}/cancelar?motivo={motivo}
+   */
+  async cancelarVotacion(votacionId: number, motivo: string): Promise<AdministrarVotacionResponse> {
+    try {
+      const token = AuthService.getAccessToken()
+      if (!token) {
+        throw new Error('Token de autenticación requerido')
+      }
+
+      console.log('❌ Cancelando votación:', { votacionId, motivo })
+      
+      const response = await fetch(`${BASE_URL}/votaciones/votaciones/${votacionId}/cancelar?motivo=${encodeURIComponent(motivo)}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`)
+      }
+
+      const data: AdministrarVotacionResponse = await response.json()
+      console.log('✅ Votación cancelada exitosamente:', data)
+      return data
+
+    } catch (error) {
+      console.error('❌ Error cancelando votación:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 12. Obtener estadísticas de una votación
+   * GET /api/votaciones/votaciones/{id}/estadisticas
+   */
+  async getEstadisticasVotacion(votacionId: number): Promise<EstadisticasVotacionResponse> {
+    try {
+      const token = AuthService.getAccessToken()
+      if (!token) {
+        throw new Error('Token de autenticación requerido')
+      }
+
+      console.log('📊 Obteniendo estadísticas de votación:', votacionId)
+      
+      const response = await fetch(`${BASE_URL}/api/votaciones/votaciones/${votacionId}/estadisticas`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`)
+      }
+
+      const data: EstadisticasVotacionResponse = await response.json()
+      console.log('✅ Estadísticas obtenidas exitosamente:', data)
+      return data
+
+    } catch (error) {
+      console.error('❌ Error obteniendo estadísticas:', error)
+      throw error
+    }
   }
 }
 

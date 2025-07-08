@@ -23,10 +23,19 @@ import {
   Hash,
   ExternalLink,
   Loader2,
-  Shield
+  Shield,
+  Play,
+  Pause,
+  Square,
+  Settings
 } from 'lucide-react';
 import useUser from '@/hooks/useUser';
-import userVotacionService, { VotacionResponse, PageResponse } from '@/lib/userVotacionService';
+import userVotacionService, { 
+  VotacionResponse, 
+  PageResponse, 
+  FinalizarVotacionResponse, 
+  AdministrarVotacionResponse 
+} from '@/lib/userVotacionService';
 import voteHistoryService, { VoteHistoryResponse } from '@/lib/voteHistoryService';
 
 interface VotacionUsuario {
@@ -86,6 +95,21 @@ export default function VotacionesUsuarioPage() {
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
   const [filtroParticipacion, setFiltroParticipacion] = useState('todas');
   const [vistaActual, setVistaActual] = useState<'todas' | 'participadas' | 'pendientes' | 'mis-creadas'>('todas');
+
+  // Estado para administración de votaciones
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState<{
+    show: boolean;
+    action: 'finalizar' | 'suspender' | 'reanudar' | 'cancelar';
+    votacionId: string;
+    votacionTitulo: string;
+    motivo?: string;
+  }>({
+    show: false,
+    action: 'finalizar',
+    votacionId: '',
+    votacionTitulo: ''
+  });
 
   // Cargar votaciones del backend
   const loadVotaciones = async () => {
@@ -165,7 +189,7 @@ export default function VotacionesUsuarioPage() {
           prioridad: userVotacionService.mapPrioridad(votacion.prioridad) as any,
           fechaInicio: userVotacionService.formatDate(votacion.fechaInicio),
           fechaFin: userVotacionService.formatDate(votacion.fechaFin),
-          participantes: votacion.participantes || 0,
+          participantes: votacion.totalVotos || 0, // Usar totalVotos como número de participantes
           totalElegibles: votacion.totalElegibles || 0,
           hasParticipated: votacion.hasParticipated || false,
           tipo: votacion.categoria || 'Votación',
@@ -362,10 +386,7 @@ export default function VotacionesUsuarioPage() {
     }
   };
 
-  const getParticipationRate = (participantes: number | undefined, total: number | undefined) => {
-    if (!participantes || !total || total === 0) return 0;
-    return Math.round((participantes / total) * 100);
-  };
+
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -385,6 +406,96 @@ export default function VotacionesUsuarioPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Funciones para administración de votaciones
+  const handleFinalizarVotacion = async (votacionId: string, titulo: string) => {
+    setShowConfirmDialog({
+      show: true,
+      action: 'finalizar',
+      votacionId,
+      votacionTitulo: titulo
+    });
+  };
+
+  const handleSuspenderVotacion = async (votacionId: string, titulo: string) => {
+    setShowConfirmDialog({
+      show: true,
+      action: 'suspender',
+      votacionId,
+      votacionTitulo: titulo
+    });
+  };
+
+  const handleReanudarVotacion = async (votacionId: string, titulo: string) => {
+    setShowConfirmDialog({
+      show: true,
+      action: 'reanudar',
+      votacionId,
+      votacionTitulo: titulo
+    });
+  };
+
+  const handleCancelarVotacion = async (votacionId: string, titulo: string) => {
+    setShowConfirmDialog({
+      show: true,
+      action: 'cancelar',
+      votacionId,
+      votacionTitulo: titulo
+    });
+  };
+
+  const executeVotacionAction = async () => {
+    if (!showConfirmDialog.show) return;
+
+    try {
+      setLoadingAction(`${showConfirmDialog.action}-${showConfirmDialog.votacionId}`);
+      
+      const votacionId = parseInt(showConfirmDialog.votacionId);
+      
+      switch (showConfirmDialog.action) {
+        case 'finalizar':
+          const resultadoFinalizar = await userVotacionService.finalizarVotacion(votacionId);
+          console.log('✅ Votación finalizada:', resultadoFinalizar);
+          break;
+          
+        case 'suspender':
+          const motivo = showConfirmDialog.motivo || 'Suspendida por el administrador';
+          await userVotacionService.suspenderVotacion(votacionId, motivo);
+          break;
+          
+        case 'reanudar':
+          await userVotacionService.reanudarVotacion(votacionId);
+          break;
+          
+        case 'cancelar':
+          const motivoCancelacion = showConfirmDialog.motivo || 'Cancelada por el administrador';
+          await userVotacionService.cancelarVotacion(votacionId, motivoCancelacion);
+          break;
+      }
+
+      // Recargar votaciones para ver los cambios
+      await loadVotaciones();
+      
+      // Cerrar el diálogo
+      setShowConfirmDialog({
+        show: false,
+        action: 'finalizar',
+        votacionId: '',
+        votacionTitulo: ''
+      });
+
+    } catch (error) {
+      console.error(`❌ Error ejecutando acción ${showConfirmDialog.action}:`, error);
+      setError(`Error al ${showConfirmDialog.action} la votación: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const canManageVotacion = (votacion: VotacionUsuario): boolean => {
+    // Solo se puede administrar en la vista "mis-creadas"
+    return vistaActual === 'mis-creadas';
   };
 
   // Funciones calculadas basadas en los datos reales
@@ -904,59 +1015,136 @@ export default function VotacionesUsuarioPage() {
                 )}
               </div>
 
-              {/* Estadísticas de participación */}
-              <div className="mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Participación general</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {votacion.participantes} / {votacion.totalElegibles} 
-                    ({getParticipationRate(votacion.participantes, votacion.totalElegibles)}%)
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full"
-                    style={{ 
-                      width: `${getParticipationRate(votacion.participantes, votacion.totalElegibles)}%` 
-                    }}
-                  ></div>
-                </div>
-              </div>
-
               {/* Acciones */}
               <div className="flex flex-wrap justify-between items-center gap-3">
                 <div className="flex items-center text-sm text-gray-500">
                   <Users className="w-4 h-4 mr-1" />
-                  <span>{votacion.participantes} participantes</span>
+                  <span>{votacion.totalVotos || 0} participantes</span>
                   <span className="mx-2">•</span>
                   <span>{votacion.tipo}</span>
                 </div>
 
                 <div className="flex gap-2">
-                  {votacion.estado === 'abierta' && !votacion.hasParticipated && (
-                    <Link 
-                      href={`/user/votaciones/${votacion.id}`}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Vote className="w-4 h-4 mr-2" />
-                      Votar ahora
-                    </Link>
+                  {/* Acciones para usuarios regulares */}
+                  {!canManageVotacion(votacion) && (
+                    <>
+                      {votacion.estado === 'abierta' && !votacion.hasParticipated && (
+                        <Link 
+                          href={`/user/votaciones/${votacion.id}`}
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Vote className="w-4 h-4 mr-2" />
+                          Votar ahora
+                        </Link>
+                      )}
+
+                      {votacion.estado === 'abierta' && votacion.hasParticipated && (
+                        <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg">
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Ya participaste
+                        </div>
+                      )}
+
+                      {votacion.estado === 'proxima' && (
+                        <div className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg">
+                          <Clock className="w-4 h-4 mr-2" />
+                          Próximamente
+                        </div>
+                      )}
+                    </>
                   )}
 
-                  {votacion.estado === 'abierta' && votacion.hasParticipated && (
-                    <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg">
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Ya participaste
-                    </div>
+                  {/* Acciones para administradores (mis votaciones) */}
+                  {canManageVotacion(votacion) && (
+                    <>
+                      {votacion.estado === 'abierta' && (
+                        <>
+                          <button
+                            onClick={() => handleFinalizarVotacion(votacion.id, votacion.titulo)}
+                            disabled={loadingAction === `finalizar-${votacion.id}`}
+                            className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loadingAction === `finalizar-${votacion.id}` ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Square className="w-4 h-4 mr-2" />
+                            )}
+                            Finalizar
+                          </button>
+                          
+                          <button
+                            onClick={() => handleSuspenderVotacion(votacion.id, votacion.titulo)}
+                            disabled={loadingAction === `suspender-${votacion.id}`}
+                            className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loadingAction === `suspender-${votacion.id}` ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Pause className="w-4 h-4 mr-2" />
+                            )}
+                            Suspender
+                          </button>
+                        </>
+                      )}
+
+                      {votacion.estado === 'suspendida' && (
+                        <>
+                          <button
+                            onClick={() => handleReanudarVotacion(votacion.id, votacion.titulo)}
+                            disabled={loadingAction === `reanudar-${votacion.id}`}
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loadingAction === `reanudar-${votacion.id}` ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Play className="w-4 h-4 mr-2" />
+                            )}
+                            Reanudar
+                          </button>
+                          
+                          <button
+                            onClick={() => handleCancelarVotacion(votacion.id, votacion.titulo)}
+                            disabled={loadingAction === `cancelar-${votacion.id}`}
+                            className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loadingAction === `cancelar-${votacion.id}` ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <XCircle className="w-4 h-4 mr-2" />
+                            )}
+                            Cancelar
+                          </button>
+                        </>
+                      )}
+
+                      {(votacion.estado === 'creada' || votacion.estado === 'proxima') && (
+                        <>
+                          <button
+                            onClick={() => handleCancelarVotacion(votacion.id, votacion.titulo)}
+                            disabled={loadingAction === `cancelar-${votacion.id}`}
+                            className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loadingAction === `cancelar-${votacion.id}` ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <XCircle className="w-4 h-4 mr-2" />
+                            )}
+                            Cancelar
+                          </button>
+                          
+                          <Link 
+                            href={`/user/votaciones/${votacion.id}/editar`}
+                            className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                          >
+                            <Settings className="w-4 h-4 mr-2" />
+                            Editar
+                          </Link>
+                        </>
+                      )}
+                    </>
                   )}
 
-                  {votacion.estado === 'proxima' && (
-                    <div className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg">
-                      <Clock className="w-4 h-4 mr-2" />
-                      Próximamente
-                    </div>
-                  )}
-
+                  {/* Acciones comunes para ambos */}
                   <Link 
                     href={`/user/votaciones/${votacion.id}`}
                     className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
@@ -1070,6 +1258,108 @@ export default function VotacionesUsuarioPage() {
         </>
       )}
       </>
+      )}
+
+      {/* Diálogo de confirmación para acciones de administración */}
+      {showConfirmDialog.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className={`p-3 rounded-full mr-4 ${
+                  showConfirmDialog.action === 'finalizar' ? 'bg-green-100' :
+                  showConfirmDialog.action === 'suspender' ? 'bg-yellow-100' :
+                  showConfirmDialog.action === 'reanudar' ? 'bg-blue-100' :
+                  'bg-red-100'
+                }`}>
+                  {showConfirmDialog.action === 'finalizar' && <Square className="w-6 h-6 text-green-600" />}
+                  {showConfirmDialog.action === 'suspender' && <Pause className="w-6 h-6 text-yellow-600" />}
+                  {showConfirmDialog.action === 'reanudar' && <Play className="w-6 h-6 text-blue-600" />}
+                  {showConfirmDialog.action === 'cancelar' && <XCircle className="w-6 h-6 text-red-600" />}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                    {showConfirmDialog.action === 'finalizar' && 'Finalizar Votación'}
+                    {showConfirmDialog.action === 'suspender' && 'Suspender Votación'}
+                    {showConfirmDialog.action === 'reanudar' && 'Reanudar Votación'}
+                    {showConfirmDialog.action === 'cancelar' && 'Cancelar Votación'}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {showConfirmDialog.votacionTitulo}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-700 mb-4">
+                  {showConfirmDialog.action === 'finalizar' && 
+                    '¿Estás seguro de que deseas finalizar esta votación? Esta acción cerrará la votación y generará los resultados finales. No podrás deshacerlo.'}
+                  {showConfirmDialog.action === 'suspender' && 
+                    '¿Estás seguro de que deseas suspender esta votación? Los usuarios no podrán votar hasta que la reanudes.'}
+                  {showConfirmDialog.action === 'reanudar' && 
+                    '¿Estás seguro de que deseas reanudar esta votación? Los usuarios podrán volver a votar.'}
+                  {showConfirmDialog.action === 'cancelar' && 
+                    '¿Estás seguro de que deseas cancelar esta votación? Esta acción es permanente y no se podrá deshacer.'}
+                </p>
+
+                {(showConfirmDialog.action === 'suspender' || showConfirmDialog.action === 'cancelar') && (
+                  <div>
+                    <label htmlFor="motivo" className="block text-sm font-medium text-gray-700 mb-2">
+                      Motivo {showConfirmDialog.action === 'suspender' ? '(opcional)' : '(requerido)'}:
+                    </label>
+                    <textarea
+                      id="motivo"
+                      rows={3}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder={`Motivo para ${showConfirmDialog.action} la votación...`}
+                      value={showConfirmDialog.motivo || ''}
+                      onChange={(e) => setShowConfirmDialog(prev => ({ ...prev, motivo: e.target.value }))}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowConfirmDialog({
+                    show: false,
+                    action: 'finalizar',
+                    votacionId: '',
+                    votacionTitulo: ''
+                  })}
+                  disabled={!!loadingAction}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={executeVotacionAction}
+                  disabled={!!loadingAction || (showConfirmDialog.action === 'cancelar' && !showConfirmDialog.motivo?.trim())}
+                  className={`px-6 py-2 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    showConfirmDialog.action === 'finalizar' ? 'bg-green-600 hover:bg-green-700' :
+                    showConfirmDialog.action === 'suspender' ? 'bg-yellow-600 hover:bg-yellow-700' :
+                    showConfirmDialog.action === 'reanudar' ? 'bg-blue-600 hover:bg-blue-700' :
+                    'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {loadingAction ? (
+                    <div className="flex items-center">
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Procesando...
+                    </div>
+                  ) : (
+                    <>
+                      {showConfirmDialog.action === 'finalizar' && 'Finalizar'}
+                      {showConfirmDialog.action === 'suspender' && 'Suspender'}
+                      {showConfirmDialog.action === 'reanudar' && 'Reanudar'}
+                      {showConfirmDialog.action === 'cancelar' && 'Cancelar'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
