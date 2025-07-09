@@ -1,94 +1,262 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, Filter, Clock, CheckCircle, XCircle, ExternalLink, Info } from 'lucide-react';
-
-interface HistorialVotacion {
-  id: string;
-  titulo: string;
-  fecha: string;
-  estado: 'emitida' | 'no-participo' | 'verificada';
-  opcionSeleccionada?: string;
-  hashVerificacion?: string;
-}
-
-const mockHistorial: HistorialVotacion[] = [
-  {
-    id: '1',
-    titulo: 'Presupuesto participativo 2025',
-    fecha: '12 mayo 2025',
-    estado: 'verificada',
-    opcionSeleccionada: 'Mejora de espacios públicos',
-    hashVerificacion: 'c5a73bd8f2f78e0d412c331e937cab42e14aa57edfe9ce542f8a2e2b6c7a8fc3'
-  },
-  {
-    id: '2',
-    titulo: 'Consulta ciudadana sobre seguridad',
-    fecha: '08 marzo 2025',
-    estado: 'verificada',
-    opcionSeleccionada: 'Aumentar vigilancia policial',
-    hashVerificacion: 'e937b39d87fe5d4281a1784fce31b5dd1f86cd88fc7f952fb003bb7140af2362'
-  },
-  {
-    id: '3',
-    titulo: 'Representante vecinal 2024',
-    fecha: '20 noviembre 2024',
-    estado: 'no-participo'
-  },
-  {
-    id: '4',
-    titulo: 'Representante vecinal 2025',
-    fecha: '12 mayo 2025',
-    estado: 'verificada',
-    opcionSeleccionada: 'María González',
-    hashVerificacion: '35f8d7e59a86c45c9f5a3fe12fe32677b8f95453c621f4a46481ef9b5932b8a7'
-  },
-  {
-    id: '5',
-    titulo: 'Presupuesto participativo 2024',
-    fecha: '10 diciembre 2024',
-    estado: 'verificada',
-    opcionSeleccionada: 'Mejora de espacios públicos',
-    hashVerificacion: 'd38b71a91cb8f07eb189ea0a2b9ebc81a0d57c577d07b28e59ec9aba25c3782e'
-  }
-];
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import useUser from '@/hooks/useUser';
+import voteHistoryService, { VoteHistoryResponse, HistorialFilters } from '@/lib/voteHistoryService';
+import { 
+  Search, 
+  Filter, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  ExternalLink, 
+  Info,
+  Loader2,
+  Shield,
+  AlertTriangle,
+  Eye,
+  RefreshCw,
+  Copy
+} from 'lucide-react';
 
 export default function HistorialPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState('todos');
-
-  const historialFiltrado = mockHistorial.filter(votacion => {
-    const matchSearch = votacion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       votacion.fecha.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchFilter = filtroEstado === 'todos' || 
-                       (filtroEstado === 'participadas' && votacion.estado !== 'no-participo') ||
-                       (filtroEstado === 'no-participadas' && votacion.estado === 'no-participo');
-    
-    return matchSearch && matchFilter;
+  const { user, loading: userLoading } = useUser();
+  
+  // Estado para datos del backend
+  const [voteHistory, setVoteHistory] = useState<VoteHistoryResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 0,
+    size: 10,
+    totalElements: 0,
+    totalPages: 0
   });
 
-  const getEstadoBadge = (estado: string) => {
-    switch (estado) {
-      case 'verificada':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          Verificado
-        </span>;
-      case 'emitida':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          <Clock className="w-3 h-3 mr-1" />
-          Emitida
-        </span>;
-      case 'no-participo':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          <XCircle className="w-3 h-3 mr-1" />
-          No participó
-        </span>;
-      default:
-        return null;
+  // Estado para filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('todos');
+  const [filtroBlockchain, setFiltroBlockchain] = useState('todos');
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
+
+  const loadVoteHistory = useCallback(async (reset = false) => {
+    try {
+      if (reset) {
+        setLoading(true);
+        setVoteHistory([]);
+        setPagination(prev => ({ ...prev, page: 0 }));
+      } else {
+        setLoadingMore(true);
+      }
+      setError('');
+
+      const currentPage = reset ? 0 : pagination.page;
+      const filters: HistorialFilters = {
+        page: currentPage,
+        size: pagination.size,
+        search: searchTerm || undefined,
+        status: filtroEstado !== 'todos' ? filtroEstado.toUpperCase() : undefined,
+        blockchainStatus: filtroBlockchain !== 'todos' ? filtroBlockchain.toUpperCase() : undefined
+      };
+
+      console.log('📚 Cargando historial de votos con filtros:', filters, reset ? '(RESET)' : '(APPEND)');
+      const response = await voteHistoryService.getUserVoteHistory(filters);
+
+      if (reset) {
+        setVoteHistory(response.content);
+        console.log('✅ Historial reseteado con:', response.content.length, 'elementos');
+      } else {
+        setVoteHistory(prev => {
+          const existingIds = new Set(prev.map(v => v.id));
+          const newItems = response.content.filter(item => !existingIds.has(item.id));
+          console.log('✅ Agregando', newItems.length, 'nuevos elementos (filtrados de', response.content.length, ')');
+          return [...prev, ...newItems];
+        });
+      }
+
+      setPagination({
+        page: response.number,
+        size: response.size,
+        totalElements: response.totalElements,
+        totalPages: response.totalPages
+      });
+
+      console.log('✅ Historial de votos cargado:', {
+        total: response.totalElements,
+        pagina: response.number + 1,
+        totalPaginas: response.totalPages,
+        enPantalla: reset ? response.content.length : voteHistory.length + response.content.length
+      });
+
+    } catch (err: unknown) {
+      console.error('❌ Error cargando historial de votos:', err);
+      setError(err instanceof Error ? err.message : 'Error cargando historial');
+      if (reset) {
+        setVoteHistory([]);
+      }
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [pagination.page, pagination.size, searchTerm, filtroEstado, filtroBlockchain, voteHistory.length]);
+
+  // Cargar historial de votos
+  useEffect(() => {
+    if (!userLoading && user) {
+      loadVoteHistory(true); // Siempre resetear cuando cambien los filtros
+    }
+  }, [user, userLoading, filtroEstado, filtroBlockchain, loadVoteHistory]);
+
+  // Buscar cuando el usuario termine de escribir
+  useEffect(() => {
+    if (!userLoading && user) {
+      const timeoutId = setTimeout(() => {
+        setPagination(prev => ({ ...prev, page: 0 }));
+        loadVoteHistory(true);
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchTerm, user, userLoading, loadVoteHistory]);
+
+  const loadMoreResults = () => {
+    if (pagination.page + 1 < pagination.totalPages && !loadingMore) {
+      const nextPage = pagination.page + 1;
+      setPagination(prev => ({ ...prev, page: nextPage }));
+      
+      // Cargar la siguiente página directamente
+      loadMoreData(nextPage);
     }
   };
+
+  const loadMoreData = async (page: number) => {
+    try {
+      setLoadingMore(true);
+      setError('');
+
+      const filters: HistorialFilters = {
+        page,
+        size: pagination.size,
+        search: searchTerm || undefined,
+        status: filtroEstado !== 'todos' ? filtroEstado.toUpperCase() : undefined,
+        blockchainStatus: filtroBlockchain !== 'todos' ? filtroBlockchain.toUpperCase() : undefined
+      };
+
+      console.log('📚 Cargando más resultados, página:', page + 1);
+      const response = await voteHistoryService.getUserVoteHistory(filters);
+
+      // Agregar solo los nuevos resultados
+      setVoteHistory(prev => [...prev, ...response.content]);
+      
+      setPagination({
+        page: response.number,
+        size: response.size,
+        totalElements: response.totalElements,
+        totalPages: response.totalPages
+      });
+
+      console.log('✅ Más resultados cargados:', {
+        nuevos: response.content.length,
+        total: response.totalElements,
+        pagina: response.number + 1,
+        totalPaginas: response.totalPages
+      });
+
+    } catch (err) {
+      console.error('❌ Error cargando más resultados:', err);
+      setError(err instanceof Error ? err.message : 'Error cargando más resultados');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedHash(`${type}-${text}`);
+      setTimeout(() => setCopiedHash(null), 2000);
+    } catch (err) {
+      console.error('Error copiando al portapapeles:', err);
+    }
+  };
+
+  const getEstadoBadge = (vote: VoteHistoryResponse) => {
+    if (voteHistoryService.isVoteFullyVerified(vote)) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Verificado
+        </span>
+      );
+    }
+
+    if (vote.status === 'PENDING' || vote.blockchainStatus === 'PENDING') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+          <Clock className="w-3 h-3 mr-1" />
+          Pendiente
+        </span>
+      );
+    }
+
+    if (vote.status === 'REJECTED' || vote.blockchainStatus === 'FAILED') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <XCircle className="w-3 h-3 mr-1" />
+          Error
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+        <Clock className="w-3 h-3 mr-1" />
+        {voteHistoryService.translateVoteStatus(vote.status)}
+      </span>
+    );
+  };
+
+  // Estados de carga
+  if (userLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+          <span className="text-gray-600">Verificando autenticación...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+            <h2 className="text-lg font-semibold text-yellow-900 mb-2">Autenticación requerida</h2>
+            <p className="text-yellow-700 mb-4">Debes iniciar sesión para ver tu historial de votaciones.</p>
+            <div className="flex gap-2 justify-center">
+              <Link
+                href="/auth/login"
+                className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-lg hover:bg-yellow-700 transition-colors"
+              >
+                Iniciar sesión
+              </Link>
+              <Link
+                href="/auth/register"
+                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Registrarse
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -104,7 +272,7 @@ export default function HistorialPage() {
 
       {/* Filtros y búsqueda */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 !text-black">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
@@ -124,9 +292,21 @@ export default function HistorialPage() {
               onChange={(e) => setFiltroEstado(e.target.value)}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="todos">Todos</option>
-              <option value="participadas">Participadas</option>
-              <option value="no-participadas">No participadas</option>
+              <option value="todos">Todos los estados</option>
+              <option value="confirmed">Confirmados</option>
+              <option value="pending">Pendientes</option>
+              <option value="rejected">Rechazados</option>
+            </select>
+            
+            <select
+              value={filtroBlockchain}
+              onChange={(e) => setFiltroBlockchain(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="todos">Todos blockchain</option>
+              <option value="verified">Verificados</option>
+              <option value="pending">Pendientes</option>
+              <option value="failed">Fallidos</option>
             </select>
           </div>
         </div>
@@ -135,87 +315,183 @@ export default function HistorialPage() {
           <div className="flex items-center">
             <Info className="w-5 h-5 text-blue-500 mr-2" />
             <span className="text-blue-800">
-              Has participado en <strong>{mockHistorial.filter(v => v.estado !== 'no-participo').length}</strong> votaciones hasta el momento.
+              Has participado en <strong>{pagination.totalElements}</strong> votaciones hasta el momento.
             </span>
           </div>
         </div>
       </div>
 
+      {/* Estado de error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
+            <span className="text-red-800">{error}</span>
+            <button
+              onClick={() => loadVoteHistory(true)}
+              className="ml-auto inline-flex items-center px-3 py-1 text-sm text-red-600 hover:text-red-800"
+            >
+              <RefreshCw className="w-4 h-4 mr-1" />
+              Reintentar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Estado de carga inicial */}
+      {loading && voteHistory.length === 0 && (
+        <div className="flex justify-center items-center py-12">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="text-gray-600">Cargando historial de votaciones...</span>
+          </div>
+        </div>
+      )}
+
       {/* Lista de votaciones */}
-      <div className="space-y-4">
-        {historialFiltrado.map((votacion) => (
-          <div key={votacion.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
-            <div className="p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {votacion.titulo}
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-500">Fecha de participación:</span>
-                      <p className="font-medium text-gray-900">{votacion.fecha}</p>
+      {!loading && voteHistory.length > 0 && (
+        <div className="space-y-4">
+          {voteHistory.map((vote) => (
+            <div key={`vote-${vote.id}-${vote.votacionId}-${vote.createdAt}`} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
+              <div className="p-6">
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {vote.votacionTitulo}
+                      </h3>
+                      {getEstadoBadge(vote)}
                     </div>
                     
-                    <div>
-                      <span className="text-gray-500">Estado:</span>
-                      <div className="mt-1">
-                        {getEstadoBadge(votacion.estado)}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-4">
+                      <div>
+                        <span className="text-gray-500">Fecha de voto:</span>
+                        <p className="font-medium text-gray-900">
+                          {voteHistoryService.formatDate(vote.createdAt)}
+                        </p>
                       </div>
-                    </div>
-                    
-                    {votacion.opcionSeleccionada && (
+                      
                       <div>
                         <span className="text-gray-500">Opción seleccionada:</span>
-                        <p className="font-medium text-gray-900">{votacion.opcionSeleccionada}</p>
+                        <p className="font-medium text-gray-900">{vote.opcionTitulo}</p>
+                      </div>
+
+                      <div>
+                        <span className="text-gray-500">Estado blockchain:</span>
+                        <div className="mt-1">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${voteHistoryService.getBlockchainStatusColor(vote.blockchainStatus)}`}>
+                            <Shield className="w-3 h-3 mr-1" />
+                            {voteHistoryService.translateBlockchainStatus(vote.blockchainStatus)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Hash de verificación blockchain */}
+                    {vote.blockchainTransactionHash && (
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-gray-500 text-sm flex items-center">
+                              <Shield className="w-4 h-4 mr-1" />
+                              Hash de verificación blockchain:
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => copyToClipboard(vote.blockchainTransactionHash!, 'blockchain')}
+                                className="text-blue-600 hover:text-blue-800 text-xs flex items-center"
+                              >
+                                <Copy className="w-3 h-3 mr-1" />
+                                {copiedHash === `blockchain-${vote.blockchainTransactionHash}` ? 'Copiado!' : 'Copiar'}
+                              </button>
+                              {voteHistoryService.getBlockchainExplorerUrl(vote.blockchainTransactionHash) && (
+                                <a
+                                  href={voteHistoryService.getBlockchainExplorerUrl(vote.blockchainTransactionHash)!}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 text-xs flex items-center"
+                                >
+                                  <ExternalLink className="w-3 h-3 mr-1" />
+                                  Explorador
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                            <code className="text-xs text-green-700 break-all font-mono">
+                              {vote.blockchainTransactionHash}
+                            </code>
+                          </div>
+                          {vote.blockchainVerifiedAt && (
+                            <p className="text-xs text-green-600 mt-1">
+                              Verificado en blockchain: {voteHistoryService.formatDate(vote.blockchainVerifiedAt)}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {votacion.hashVerificacion && (
-                    <div className="mt-4">
-                      <span className="text-gray-500 text-sm">Código de verificación:</span>
-                      <div className="mt-1 p-3 bg-gray-50 rounded-lg border">
-                        <code className="text-xs text-gray-700 break-all font-mono">
-                          {votacion.hashVerificacion}
-                        </code>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {votacion.hashVerificacion && (
-                  <div className="lg:ml-4">
-                    <button className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Verificar integridad
-                    </button>
+                  {/* Botón para ver detalles de la votación */}
+                  <div className="lg:ml-4 flex-shrink-0">
+                    <Link
+                      href={`/user/votaciones/${vote.votacionId}`}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Ver votación
+                    </Link>
                   </div>
-                )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {historialFiltrado.length === 0 && (
+      {/* Estado vacío */}
+      {!loading && voteHistory.length === 0 && !error && (
         <div className="text-center py-12">
           <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No se encontraron resultados
+            No hay historial de votaciones
           </h3>
-          <p className="text-gray-500">
-            Intenta ajustar los filtros de búsqueda para encontrar lo que buscas.
+          <p className="text-gray-500 mb-4">
+            {searchTerm || filtroEstado !== 'todos' || filtroBlockchain !== 'todos'
+              ? 'No se encontraron votaciones con los filtros aplicados.'
+              : 'Aún no has participado en ninguna votación.'}
           </p>
+          {(searchTerm || filtroEstado !== 'todos' || filtroBlockchain !== 'todos') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFiltroEstado('todos');
+                setFiltroBlockchain('todos');
+              }}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
       )}
 
       {/* Botón cargar más */}
-      {historialFiltrado.length > 0 && (
+      {!loading && voteHistory.length > 0 && pagination.page + 1 < pagination.totalPages && (
         <div className="text-center">
-          <button className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-            Cargar más resultados
+          <button
+            onClick={loadMoreResults}
+            disabled={loadingMore}
+            className="inline-flex items-center px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Cargando...
+              </>
+            ) : (
+              'Cargar más resultados'
+            )}
           </button>
         </div>
       )}

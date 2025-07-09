@@ -3,16 +3,18 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import ApiService from '@/lib/api'
+import AuthService from '@/lib/auth'
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     dni: '',
-    nombre: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
-    confirmarPassword: '',
-    rol: 'votante',
-    claveVerificacion: '',
+    confirmPassword: '',
+    verificationCode: '',
     aceptaTerminos: false
   })
   const [isLoading, setIsLoading] = useState(false)
@@ -38,8 +40,12 @@ export default function RegisterPage() {
       newErrors.dni = 'El DNI debe tener 8 dígitos'
     }
 
-    if (!formData.nombre.trim()) {
-      newErrors.nombre = 'El nombre es requerido'
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'El nombre es requerido'
+    }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Los apellidos son requeridos'
     }
 
     if (!formData.email) {
@@ -50,8 +56,8 @@ export default function RegisterPage() {
       newErrors.password = 'La contraseña debe tener al menos 8 caracteres'
     }
 
-    if (formData.password !== formData.confirmarPassword) {
-      newErrors.confirmarPassword = 'Las contraseñas no coinciden'
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Las contraseñas no coinciden'
     }
 
     if (!formData.aceptaTerminos) {
@@ -72,12 +78,53 @@ export default function RegisterPage() {
     setIsLoading(true)
     
     try {
-      console.log('Registro attempt:', formData)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      router.push('/auth/login?message=registered')
+      // Llamar a la API de registro
+      const authResponse = await ApiService.register({
+        email: formData.email,
+        dni: formData.dni,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+        verificationCode: formData.verificationCode || undefined
+      })
       
-    } catch (error) {
+      // Registro exitoso - guardar tokens y datos del usuario
+      AuthService.saveAuthData(authResponse)
+      console.log('Registro exitoso para:', authResponse.email)
+      
+      // Obtener datos completos del usuario
+      try {
+        const userProfile = await ApiService.getCurrentUserProfile(authResponse.accessToken)
+        AuthService.updateUserData(userProfile)
+      } catch (profileError) {
+        console.warn('No se pudieron obtener los datos del perfil:', profileError)
+        // Continuar sin los datos del perfil, se obtendrán después
+      }
+      
+      // Redirigir al dashboard
+      router.push('/user/public-stats')
+      
+    } catch (error: unknown) {
       console.error('Error en registro:', error)
+      
+      // Manejar errores específicos de la API
+      if (error && typeof error === 'object' && 'status' in error) {
+        const apiError = error as { status: number; message?: string }
+        if (apiError.status === 400) {
+          setErrors({ email: 'El email ya está registrado o hay un error en los datos.' })
+        } else if (apiError.status === 409) {
+          setErrors({ email: 'Ya existe una cuenta con este email.' })
+        } else if (apiError.status >= 500) {
+          setErrors({ general: 'Error del servidor. Intenta más tarde.' })
+        } else {
+          setErrors({ general: apiError.message || 'Error en el registro.' })
+        }
+      } else if (error instanceof Error) {
+        setErrors({ general: error.message || 'Error en el registro.' })
+      } else {
+        setErrors({ general: 'Error en el registro.' })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -118,7 +165,7 @@ export default function RegisterPage() {
                   type="text" 
                   id="dni" 
                   name="dni"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-black"
                   placeholder="Ej. 12345678"
                   maxLength={8}
                   value={formData.dni}
@@ -130,21 +177,39 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre completo
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre
                 </label>
                 <input 
                   type="text" 
-                  id="nombre" 
-                  name="nombre"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Ej. Juan Pérez"
-                  value={formData.nombre}
+                  id="firstName" 
+                  name="firstName"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-black"
+                  placeholder="Ej. Juan"
+                  value={formData.firstName}
                   onChange={handleInputChange}
                   required
                   disabled={isLoading}
                 />
-                {errors.nombre && <p className="mt-1 text-sm text-red-500">{errors.nombre}</p>}
+                {errors.firstName && <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Apellidos
+                </label>
+                <input 
+                  type="text" 
+                  id="lastName" 
+                  name="lastName"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-black"
+                  placeholder="Ej. Pérez García"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  required
+                  disabled={isLoading}
+                />
+                {errors.lastName && <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>}
               </div>
             </div>
 
@@ -156,7 +221,7 @@ export default function RegisterPage() {
                 type="email" 
                 id="email" 
                 name="email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-black"
                 placeholder="usuario@email.com"
                 value={formData.email}
                 onChange={handleInputChange}
@@ -175,7 +240,7 @@ export default function RegisterPage() {
                   type="password" 
                   id="password" 
                   name="password"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-black"
                   placeholder="Mínimo 8 caracteres"
                   value={formData.password}
                   onChange={handleInputChange}
@@ -186,61 +251,41 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label htmlFor="confirmarPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
                   Confirmar contraseña
                 </label>
                 <input 
                   type="password" 
-                  id="confirmarPassword" 
-                  name="confirmarPassword"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  id="confirmPassword" 
+                  name="confirmPassword"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-black"
                   placeholder="Repite tu contraseña"
-                  value={formData.confirmarPassword}
+                  value={formData.confirmPassword}
                   onChange={handleInputChange}
                   required
                   disabled={isLoading}
                 />
-                {errors.confirmarPassword && <p className="mt-1 text-sm text-red-500">{errors.confirmarPassword}</p>}
+                {errors.confirmPassword && <p className="mt-1 text-sm text-red-500">{errors.confirmPassword}</p>}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="rol" className="block text-sm font-medium text-gray-700 mb-2">
-                  Rol en la plataforma
-                </label>
-                <select 
-                  id="rol" 
-                  name="rol"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
-                  value={formData.rol}
-                  onChange={handleInputChange}
-                  required
-                  disabled={isLoading}
-                >
-                  <option value="votante">Votante</option>
-                  <option value="organizador">Organizador</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="claveVerificacion" className="block text-sm font-medium text-gray-700 mb-2">
-                  Código de verificación
-                </label>
-                <input 
-                  type="text" 
-                  id="claveVerificacion" 
-                  name="claveVerificacion"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Si aplica"
-                  value={formData.claveVerificacion}
-                  onChange={handleInputChange}
-                  disabled={isLoading}
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Requerido solo para roles especiales
-                </p>
-              </div>
+            <div>
+              <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700 mb-2">
+                Código de verificación (opcional)
+              </label>
+              <input 
+                type="text" 
+                id="verificationCode" 
+                name="verificationCode"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-black"
+                placeholder="Deja vacío si no tienes código"
+                value={formData.verificationCode}
+                onChange={handleInputChange}
+                disabled={isLoading}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Solo necesario si tienes un código de invitación especial
+              </p>
             </div>
 
             <div className="flex items-start space-x-3 mt-6">
@@ -252,7 +297,7 @@ export default function RegisterPage() {
                 onChange={handleInputChange}
                 required 
                 disabled={isLoading}
-                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded text-black"
               />
               <label htmlFor="aceptaTerminos" className="text-sm text-gray-700">
                 Acepto los{' '}
