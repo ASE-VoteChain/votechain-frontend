@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   Vote, 
@@ -110,6 +110,9 @@ export default function VotacionesUsuarioPage() {
     votacionId: '',
     votacionTitulo: ''
   });
+
+  // Estado específico para prevenir pestañeo al cambiar de vista
+  const [loadingVistaChange, setLoadingVistaChange] = useState(false);
 
   // Cargar votaciones del backend
   const loadVotaciones = async () => {
@@ -262,50 +265,36 @@ export default function VotacionesUsuarioPage() {
     }
   };
 
-  // Cargar votaciones al montar el componente y cuando cambien los filtros
+  // Cargar votaciones al montar el componente y cuando cambien los filtros críticos
   useEffect(() => {
-    console.log('📊 useEffect: Evaluando si cargar votaciones', {
+    console.log('📊 useEffect principal: Evaluando si cargar votaciones', {
       userLoading,
       user: !!user,
       userId: user?.id,
       page: pagination.page,
-      filtros: { filtroEstado, filtroCategoria, filtroParticipacion }
+      filtros: { filtroEstado, filtroCategoria, filtroParticipacion, vistaActual }
     });
 
     // Solo cargar si el usuario no está en estado de carga
-    if (!userLoading) {
-      if (user) {
-        console.log('📊 useEffect: Usuario autenticado, cargando votaciones...');
-        loadVotaciones();
-      } else {
-        console.log('📊 useEffect: Usuario no autenticado, limpiando estado...');
-        setVotaciones([]);
-        setError('');
-        setErrorDetails(null);
-        setLoading(false);
-      }
-    }
-  }, [user, userLoading, pagination.page, filtroEstado, filtroCategoria, filtroParticipacion]);
-
-  // Cargar votaciones cuando cambie la vista actual
-  useEffect(() => {
     if (!userLoading && user) {
-      console.log('👁️ useEffect vista: Cambiando vista actual a:', vistaActual);
-      setPagination(prev => ({ ...prev, page: 0 }));
+      console.log('📊 useEffect principal: Usuario autenticado, cargando votaciones...');
       loadVotaciones();
+    } else if (!userLoading && !user) {
+      console.log('📊 useEffect principal: Usuario no autenticado, limpiando estado...');
+      setVotaciones([]);
+      setError('');
+      setErrorDetails(null);
+      setLoading(false);
     }
-  }, [vistaActual, user, userLoading]);
+  }, [user, userLoading, loadVotaciones]);
 
-  // Buscar cuando el usuario termine de escribir
+  // Buscar cuando el usuario termine de escribir (con debounce)
   useEffect(() => {
-    if (!userLoading && user) {
+    if (!userLoading && user && searchTerm !== '') {
       const timeoutId = setTimeout(() => {
         console.log('🔍 useEffect búsqueda: Ejecutando búsqueda con término:', searchTerm);
-        if (pagination.page === 0) {
-          loadVotaciones();
-        } else {
-          setPagination(prev => ({ ...prev, page: 0 }));
-        }
+        // Siempre resetear a página 0 para búsquedas nuevas
+        setPagination(prev => ({ ...prev, page: 0 }));
       }, 500);
 
       return () => clearTimeout(timeoutId);
@@ -498,55 +487,100 @@ export default function VotacionesUsuarioPage() {
     return vistaActual === 'mis-creadas';
   };
 
-  // Funciones calculadas basadas en los datos reales
-  const categorias = ['todas', ...Array.from(new Set(votaciones.map((v: VotacionUsuario) => v.categoria)))];
-  const votacionesAbiertas = votaciones.filter((v: VotacionUsuario) => v.estado === 'abierta');
-  const votacionesProximas = votaciones.filter((v: VotacionUsuario) => v.estado === 'proxima');
-  const votacionesParticipadas = votaciones.filter((v: VotacionUsuario) => v.hasParticipated);
-  const votacionesCerradas = votaciones.filter((v: VotacionUsuario) => v.estado === 'cerrada');
+  // Funciones calculadas basadas en los datos reales (memoizadas para evitar recálculos)
+  const categorias = useMemo(() => {
+    return ['todas', ...Array.from(new Set(votaciones.map((v: VotacionUsuario) => v.categoria)))];
+  }, [votaciones]);
 
-  // Aplicar filtros a las votaciones actuales
-  const votacionesFiltradas = votaciones.filter((votacion: VotacionUsuario) => {
-    // Filtro por vista actual
-    if (vistaActual === 'pendientes' && (votacion.estado !== 'abierta' || votacion.hasParticipated)) {
-      return false;
-    }
-    if (vistaActual === 'participadas' && !votacion.hasParticipated) {
-      return false;
-    }
-    if (vistaActual === 'mis-creadas') {
-      // Para mis votaciones creadas, no aplicamos filtros adicionales ya que el endpoint ya filtra
-      // Pero podríamos agregar lógica adicional aquí si fuera necesario
-    }
+  const votacionesAbiertas = useMemo(() => {
+    return votaciones.filter((v: VotacionUsuario) => v.estado === 'abierta');
+  }, [votaciones]);
 
-    // Filtro por búsqueda
-    if (searchTerm && !votacion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !votacion.descripcion.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
-    }
+  const votacionesProximas = useMemo(() => {
+    return votaciones.filter((v: VotacionUsuario) => v.estado === 'proxima');
+  }, [votaciones]);
 
-    // Filtro por estado
-    if (filtroEstado !== 'todas' && votacion.estado !== filtroEstado) {
-      return false;
-    }
+  const votacionesParticipadas = useMemo(() => {
+    return votaciones.filter((v: VotacionUsuario) => v.hasParticipated);
+  }, [votaciones]);
 
-    // Filtro por categoría
-    if (filtroCategoria !== 'todas' && votacion.categoria !== filtroCategoria) {
-      return false;
-    }
+  const votacionesCerradas = useMemo(() => {
+    return votaciones.filter((v: VotacionUsuario) => v.estado === 'cerrada');
+  }, [votaciones]);
 
-    // Filtro por participación (solo aplicable cuando no estamos viendo mis votaciones creadas)
-    if (vistaActual !== 'mis-creadas') {
-      if (filtroParticipacion === 'participadas' && !votacion.hasParticipated) {
+  // Aplicar filtros a las votaciones actuales (memoizado)
+  const votacionesFiltradas = useMemo(() => {
+    return votaciones.filter((votacion: VotacionUsuario) => {
+      // Filtro por vista actual
+      if (vistaActual === 'pendientes' && (votacion.estado !== 'abierta' || votacion.hasParticipated)) {
         return false;
       }
-      if (filtroParticipacion === 'pendientes' && votacion.hasParticipated) {
+      if (vistaActual === 'participadas' && !votacion.hasParticipated) {
         return false;
       }
-    }
+      if (vistaActual === 'mis-creadas') {
+        // Para mis votaciones creadas, no aplicamos filtros adicionales ya que el endpoint ya filtra
+        // Pero podríamos agregar lógica adicional aquí si fuera necesario
+      }
 
-    return true;
-  });
+      // Filtro por búsqueda
+      if (searchTerm && !votacion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) && 
+          !votacion.descripcion.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+
+      // Filtro por estado
+      if (filtroEstado !== 'todas' && votacion.estado !== filtroEstado) {
+        return false;
+      }
+
+      // Filtro por categoría
+      if (filtroCategoria !== 'todas' && votacion.categoria !== filtroCategoria) {
+        return false;
+      }
+
+      // Filtro por participación (solo aplicable cuando no estamos viendo mis votaciones creadas)
+      if (vistaActual !== 'mis-creadas') {
+        if (filtroParticipacion === 'participadas' && !votacion.hasParticipated) {
+          return false;
+        }
+        if (filtroParticipacion === 'pendientes' && votacion.hasParticipated) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [votaciones, vistaActual, searchTerm, filtroEstado, filtroCategoria, filtroParticipacion]);
+
+  // Handlers memoizados para evitar re-renders innecesarios
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleEstadoChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFiltroEstado(e.target.value);
+  }, []);
+
+  const handleCategoriaChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFiltroCategoria(e.target.value);
+  }, []);
+
+  const handleParticipacionChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFiltroParticipacion(e.target.value);
+  }, []);
+
+  const handleVistaChange = useCallback((vista: 'todas' | 'participadas' | 'pendientes' | 'mis-creadas') => {
+    setVistaActual(vista);
+  }, []);
+
+  const handleLimpiarFiltros = useCallback(() => {
+    setSearchTerm('');
+    setFiltroEstado('todas');
+    setFiltroCategoria('todas');
+    setFiltroParticipacion('todas');
+    handleVistaChange('todas');
+  }, [handleVistaChange]);
 
   return (
     <div className="space-y-6">
@@ -666,8 +700,7 @@ export default function VotacionesUsuarioPage() {
                     setFiltroEstado('todas');
                     setFiltroCategoria('todas');
                     setFiltroParticipacion('todas');
-                    setVistaActual('todas');
-                    setPagination(prev => ({ ...prev, page: 0 }));
+                    handleVistaChange('todas');
                     setPagination(prev => ({ ...prev, page: 0 }));
                   }}
                   className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
@@ -750,7 +783,7 @@ export default function VotacionesUsuarioPage() {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
-            onClick={() => setVistaActual('todas')}
+            onClick={() => handleVistaChange('todas')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               vistaActual === 'todas'
                 ? 'border-blue-500 text-blue-600'
@@ -763,7 +796,7 @@ export default function VotacionesUsuarioPage() {
             </span>
           </button>
           <button
-            onClick={() => setVistaActual('pendientes')}
+            onClick={() => handleVistaChange('pendientes')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               vistaActual === 'pendientes'
                 ? 'border-blue-500 text-blue-600'
@@ -776,7 +809,7 @@ export default function VotacionesUsuarioPage() {
             </span>
           </button>
           <button
-            onClick={() => setVistaActual('participadas')}
+            onClick={() => handleVistaChange('participadas')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               vistaActual === 'participadas'
                 ? 'border-blue-500 text-blue-600'
@@ -790,7 +823,7 @@ export default function VotacionesUsuarioPage() {
           </button>
           {user && (
             <button
-              onClick={() => setVistaActual('mis-creadas')}
+              onClick={() => handleVistaChange('mis-creadas')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 vistaActual === 'mis-creadas'
                   ? 'border-blue-500 text-blue-600'
@@ -816,7 +849,7 @@ export default function VotacionesUsuarioPage() {
               type="text"
               placeholder="Buscar votaciones..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -826,7 +859,7 @@ export default function VotacionesUsuarioPage() {
             <Filter className="w-5 h-5 text-gray-500" />
             <select
               value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
+              onChange={handleEstadoChange}
               className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="todas">Todos los estados</option>
@@ -839,7 +872,7 @@ export default function VotacionesUsuarioPage() {
           {/* Filtro por categoría */}
           <select
             value={filtroCategoria}
-            onChange={(e) => setFiltroCategoria(e.target.value)}
+            onChange={handleCategoriaChange}
             className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             {categorias.map(categoria => (
@@ -852,7 +885,7 @@ export default function VotacionesUsuarioPage() {
           {/* Filtro por participación */}
           <select
             value={filtroParticipacion}
-            onChange={(e) => setFiltroParticipacion(e.target.value)}
+            onChange={handleParticipacionChange}
             className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="todas">Todas</option>
@@ -866,13 +899,7 @@ export default function VotacionesUsuarioPage() {
             {votacionesFiltradas.length} votación{votacionesFiltradas.length !== 1 ? 'es' : ''} encontrada{votacionesFiltradas.length !== 1 ? 's' : ''}
           </p>
           <button
-            onClick={() => {
-              setSearchTerm('');
-              setFiltroEstado('todas');
-              setFiltroCategoria('todas');
-              setFiltroParticipacion('todas');
-              setVistaActual('todas');
-            }}
+            onClick={handleLimpiarFiltros}
             className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
           >
             <RefreshCw className="w-4 h-4 mr-1" />
@@ -1187,7 +1214,7 @@ export default function VotacionesUsuarioPage() {
           </p>
           {vistaActual !== 'todas' && vistaActual !== 'mis-creadas' && (
             <button
-              onClick={() => setVistaActual('todas')}
+              onClick={() => handleVistaChange('todas')}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors !text-white"
             >
               Ver todas las votaciones
@@ -1219,7 +1246,7 @@ export default function VotacionesUsuarioPage() {
               </p>
             </div>
             <button
-              onClick={() => setVistaActual('pendientes')}
+              onClick={() => handleVistaChange('pendientes')}
               className="inline-flex items-center px-6 py-3 bg-white text-blue-600 font-medium rounded-lg hover:bg-blue-50 transition-colors"
             >
               <Vote className="w-5 h-5 mr-2" />
