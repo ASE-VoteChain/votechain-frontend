@@ -605,14 +605,14 @@ export default function ResultadosVotacionPage() {
         <div className="mt-6 flex justify-center gap-4">
           <Link
             href={`/user/votaciones/${votacionId}`}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors !text-white"
           >
             <Info className="w-5 h-5 mr-2" />
             Ver detalles de votación
           </Link>
           <Link
             href="/user/votaciones"
-            className="inline-flex items-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            className="inline-flex items-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors !text-white"
           >
             <BarChart3 className="w-5 h-5 mr-2" />
             Ver todas las votaciones
