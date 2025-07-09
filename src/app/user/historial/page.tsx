@@ -87,7 +87,7 @@ export default function HistorialPage() {
         total: response.totalElements,
         pagina: response.number + 1,
         totalPaginas: response.totalPages,
-        enPantalla: reset ? response.content.length : voteHistory.length + response.content.length
+        enPantalla: reset ? response.content.length : 'updating...'
       });
 
     } catch (err: unknown) {
@@ -100,75 +100,74 @@ export default function HistorialPage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [pagination.page, pagination.size, searchTerm, filtroEstado, filtroBlockchain, voteHistory.length]);
+  }, [pagination.page, pagination.size, searchTerm, filtroEstado, filtroBlockchain]);
 
-  // Cargar historial de votos
+  // Cargar historial de votos cuando cambien filtros críticos
   useEffect(() => {
     if (!userLoading && user) {
       loadVoteHistory(true); // Siempre resetear cuando cambien los filtros
     }
-  }, [user, userLoading, filtroEstado, filtroBlockchain, loadVoteHistory]);
+  }, [user, userLoading, filtroEstado, filtroBlockchain]);
 
-  // Buscar cuando el usuario termine de escribir
+  // Efecto separado para cuando cambie la función loadVoteHistory (por cambios en pagination)
   useEffect(() => {
-    if (!userLoading && user) {
+    if (!userLoading && user && pagination.page > 0) {
+      // Solo cargar más datos si no es la página inicial
+      const loadMore = async () => {
+        try {
+          setLoadingMore(true);
+          const filters: HistorialFilters = {
+            page: pagination.page,
+            size: pagination.size,
+            search: searchTerm || undefined,
+            status: filtroEstado !== 'todos' ? filtroEstado.toUpperCase() : undefined,
+            blockchainStatus: filtroBlockchain !== 'todos' ? filtroBlockchain.toUpperCase() : undefined
+          };
+
+          console.log('📚 Cargando página adicional:', pagination.page + 1);
+          const response = await voteHistoryService.getUserVoteHistory(filters);
+          
+          setVoteHistory(prev => [...prev, ...response.content]);
+          
+          setPagination(current => ({
+            ...current,
+            page: response.number,
+            totalElements: response.totalElements,
+            totalPages: response.totalPages
+          }));
+        } catch (err: unknown) {
+          console.error('❌ Error cargando página adicional:', err);
+          setError(err instanceof Error ? err.message : 'Error cargando más resultados');
+        } finally {
+          setLoadingMore(false);
+        }
+      };
+      
+      loadMore();
+    }
+  }, [pagination.page]); // Solo cuando cambie la página
+
+  // Buscar cuando el usuario termine de escribir (con debounce)
+  useEffect(() => {
+    if (!userLoading && user && searchTerm !== '') {
       const timeoutId = setTimeout(() => {
+        console.log('🔍 Ejecutando búsqueda con término:', searchTerm);
         setPagination(prev => ({ ...prev, page: 0 }));
         loadVoteHistory(true);
       }, 500);
 
       return () => clearTimeout(timeoutId);
+    } else if (!userLoading && user && searchTerm === '') {
+      // Si se limpia la búsqueda, recargar inmediatamente
+      setPagination(prev => ({ ...prev, page: 0 }));
+      loadVoteHistory(true);
     }
-  }, [searchTerm, user, userLoading, loadVoteHistory]);
+  }, [searchTerm, user, userLoading]);
 
   const loadMoreResults = () => {
     if (pagination.page + 1 < pagination.totalPages && !loadingMore) {
-      const nextPage = pagination.page + 1;
-      setPagination(prev => ({ ...prev, page: nextPage }));
-      
-      // Cargar la siguiente página directamente
-      loadMoreData(nextPage);
-    }
-  };
-
-  const loadMoreData = async (page: number) => {
-    try {
-      setLoadingMore(true);
-      setError('');
-
-      const filters: HistorialFilters = {
-        page,
-        size: pagination.size,
-        search: searchTerm || undefined,
-        status: filtroEstado !== 'todos' ? filtroEstado.toUpperCase() : undefined,
-        blockchainStatus: filtroBlockchain !== 'todos' ? filtroBlockchain.toUpperCase() : undefined
-      };
-
-      console.log('📚 Cargando más resultados, página:', page + 1);
-      const response = await voteHistoryService.getUserVoteHistory(filters);
-
-      // Agregar solo los nuevos resultados
-      setVoteHistory(prev => [...prev, ...response.content]);
-      
-      setPagination({
-        page: response.number,
-        size: response.size,
-        totalElements: response.totalElements,
-        totalPages: response.totalPages
-      });
-
-      console.log('✅ Más resultados cargados:', {
-        nuevos: response.content.length,
-        total: response.totalElements,
-        pagina: response.number + 1,
-        totalPaginas: response.totalPages
-      });
-
-    } catch (err) {
-      console.error('❌ Error cargando más resultados:', err);
-      setError(err instanceof Error ? err.message : 'Error cargando más resultados');
-    } finally {
-      setLoadingMore(false);
+      console.log('📚 Solicitando cargar página:', pagination.page + 2);
+      setPagination(prev => ({ ...prev, page: prev.page + 1 }));
     }
   };
 
