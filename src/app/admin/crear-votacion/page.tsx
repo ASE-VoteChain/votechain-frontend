@@ -2,14 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Save, 
-  X, 
-  Plus, 
-  Trash2, 
-  Calendar, 
-  Info
-} from 'lucide-react';
+import { Save, X, Plus, Trash2, Calendar, Info } from 'lucide-react';
+import votacionService, {
+  CreateVotacionRequest,
+  VotacionOpcion
+} from '../../../lib/votacionService';
 
 interface OpcionVotacion {
   id: string;
@@ -19,7 +16,7 @@ interface OpcionVotacion {
 export default function CrearVotacionPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  
+
   // Estados del formulario
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -36,7 +33,10 @@ export default function CrearVotacionPage() {
   ]);
   const [permitirMultiple, setPermitirMultiple] = useState(false);
   const [requiereVerificacion, setRequiereVerificacion] = useState(true);
-  const [ubicacion, setUbicacion] = useState('');  const [organizador, setOrganizador] = useState('');
+  const [ubicacion, setUbicacion] = useState('');
+  const [organizador, setOrganizador] = useState('');
+  const [prioridad, setPrioridad] = useState<'ALTA' | 'MEDIA' | 'BAJA'>('ALTA');
+  const [requisitos, setRequisitos] = useState('');
 
   const tiposVotacion = [
     { value: 'eleccion', label: 'Elección de representantes' },
@@ -47,18 +47,13 @@ export default function CrearVotacionPage() {
   ];
 
   const categorias = [
-    'Representación',
-    'Presupuesto',
-    'Seguridad',
-    'Infraestructura',
-    'Educación',
-    'Salud',
-    'Medio ambiente',
-    'Transporte',
-    'Cultura',
-    'Deportes',
-    'Administración',
-    'Otro'
+    'GENERAL',
+    'INSTITUCIONAL',
+    'POLITICA',
+    'EDUCATIVA',
+    'COMUNITARIA',
+    'EMPRESARIAL',
+    'OTRA'
   ];
 
   const agregarOpcion = () => {
@@ -73,7 +68,7 @@ export default function CrearVotacionPage() {
   };
 
   const actualizarOpcion = (id: string, texto: string) => {
-    setOpciones(opciones.map(opcion => 
+    setOpciones(opciones.map(opcion =>
       opcion.id === id ? { ...opcion, texto } : opcion
     ));
   };
@@ -82,66 +77,50 @@ export default function CrearVotacionPage() {
     e.preventDefault();
     setLoading(true);
 
+    // validaciones básicas
+    if (!titulo.trim()) return alert('El título es obligatorio');
+    if (!descripcion.trim()) return alert('La descripción es obligatoria');
+    if (!tipo) return alert('Selecciona un tipo de votación');
+
+    if (!saveAsDraft) {
+      if (!fechaInicio || !fechaCierre) return alert('Las fechas de inicio y cierre son obligatorias');
+      if (new Date(fechaCierre) <= new Date(fechaInicio)) {
+        return alert('La fecha de cierre debe ser posterior a la de inicio');
+      }
+    }
+
+    const opcionesValidas = opciones.filter(op => op.texto.trim());
+    if (opcionesValidas.length < 2) return alert('Debe haber al menos 2 opciones válidas');
+
+    // formatear las opciones para el servicio
+    const opcionesFormateadas: VotacionOpcion[] = opcionesValidas.map((op, idx) => ({
+      titulo: op.texto.trim(),
+      descripcion: '',
+      orden: idx
+    }));
+
+    // construir payload
+    const payload: CreateVotacionRequest = {
+      titulo,
+      descripcion,
+      categoria: (categoria as CreateVotacionRequest['categoria']) || 'OTRA',
+      estado: saveAsDraft ? 'PROXIMA' : 'CREADA',
+      prioridad,
+      fechaInicio: `${fechaInicio}T${horaInicio || '00:00'}:00Z`,
+      fechaFin:    `${fechaCierre}T${horaCierre || '00:00'}:00Z`,
+      ubicacion,
+      organizador,
+      requisitos,
+      opciones: opcionesFormateadas
+    };
+
     try {
-      // Validaciones
-      if (!titulo.trim()) {
-        alert('El título es obligatorio');
-        return;
-      }
-
-      if (!descripcion.trim()) {
-        alert('La descripción es obligatoria');
-        return;
-      }
-
-      if (!tipo) {
-        alert('Selecciona un tipo de votación');
-        return;
-      }
-
-      if (!saveAsDraft) {
-        if (!fechaInicio || !fechaCierre) {
-          alert('Las fechas de inicio y cierre son obligatorias');
-          return;
-        }
-
-        if (new Date(fechaCierre) <= new Date(fechaInicio)) {
-          alert('La fecha de cierre debe ser posterior a la fecha de inicio');
-          return;
-        }
-      }
-
-      const opcionesValidas = opciones.filter(opcion => opcion.texto.trim());
-      if (opcionesValidas.length < 2) {
-        alert('Debe haber al menos 2 opciones válidas');
-        return;
-      }
-
-      // Simular guardado
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      const nuevaVotacion = {
-        titulo,
-        descripcion,
-        fechaInicio: fechaInicio + (horaInicio ? `T${horaInicio}:00Z` : ''),
-        fechaCierre: fechaCierre + (horaCierre ? `T${horaCierre}:00Z` : ''),
-        tipo,
-        categoria,
-        visibilidad,
-        opciones: opcionesValidas,
-        permitirMultiple,
-        requiereVerificacion,
-        ubicacion,
-        organizador,
-        estado: saveAsDraft ? 'borrador' : 'programada'
-      };
-
-      console.log('Nueva votación:', nuevaVotacion);
-
+      const newVotacion = await votacionService.createVotacion(payload);
+      console.log('✅ Votación creada:', newVotacion);
       router.push('/admin/votaciones');
-    } catch (error) {
-      console.error('Error al crear votación:', error);
-      alert('Error al crear la votación. Inténtalo de nuevo.');
+    } catch (err: any) {
+      alert(err.message || 'Ocurrió un error al crear la votación.');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -165,67 +144,51 @@ export default function CrearVotacionPage() {
           <div className="grid grid-cols-1 gap-6">
             {/* Título */}
             <div>
-              <label htmlFor="titulo" className="block text-sm font-medium text-gray-700 mb-2">
-                Título de la votación *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Título *</label>
               <input
                 type="text"
-                id="titulo"
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
-                placeholder="Ej. Elección de delegados estudiantiles"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
+                className="w-full px-3 py-2 border rounded-lg text-black"
+                placeholder="Ej. Elección de delegados"
               />
             </div>
 
             {/* Descripción */}
             <div>
-              <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-2">
-                Descripción *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Descripción *</label>
               <textarea
-                id="descripcion"
-                rows={4}
+                rows={3}
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
-                placeholder="Breve explicación del propósito de la votación..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
+                className="w-full px-3 py-2 border rounded-lg text-black"
+                placeholder="Breve explicación..."
               />
             </div>
 
             {/* Tipo y categoría */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de votación *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo *</label>
                 <select
-                  id="tipo"
                   value={tipo}
                   onChange={(e) => setTipo(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
+                  className="w-full px-3 py-2 border rounded-lg text-black"
                 >
-                  <option value="">Seleccionar tipo...</option>
+                  <option value="">Seleccionar...</option>
                   {tiposVotacion.map(t => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>
               </div>
-
               <div>
-                <label htmlFor="categoria" className="block text-sm font-medium text-gray-700 mb-2">
-                  Categoría
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
                 <select
-                  id="categoria"
                   value={categoria}
                   onChange={(e) => setCategoria(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded-lg text-black"
                 >
-                  <option value="">Seleccionar categoría...</option>
+                  <option value="">Seleccionar...</option>
                   {categorias.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
@@ -233,33 +196,50 @@ export default function CrearVotacionPage() {
               </div>
             </div>
 
-            {/* Organizador y ubicación */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Organizador / Ubicación */}
+            <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="organizador" className="block text-sm font-medium text-gray-700 mb-2">
-                  Organizador
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Organizador</label>
                 <input
                   type="text"
-                  id="organizador"
                   value={organizador}
                   onChange={(e) => setOrganizador(e.target.value)}
-                  placeholder="Ej. Junta de Acción Comunal"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded-lg text-black"
                 />
               </div>
-
               <div>
-                <label htmlFor="ubicacion" className="block text-sm font-medium text-gray-700 mb-2">
-                  Ubicación/Ámbito
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ubicación</label>
                 <input
                   type="text"
-                  id="ubicacion"
                   value={ubicacion}
                   onChange={(e) => setUbicacion(e.target.value)}
-                  placeholder="Ej. Municipal - Toda la ciudad"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border rounded-lg text-black"
+                />
+              </div>
+            </div>
+
+            {/* Prioridad / Requisitos */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Prioridad</label>
+                <select
+                  value={prioridad}
+                  onChange={(e) => setPrioridad(e.target.value as any)}
+                  className="w-full px-3 py-2 border rounded-lg text-black"
+                >
+                  <option value="ALTA">Alta</option>
+                  <option value="MEDIA">Media</option>
+                  <option value="BAJA">Baja</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Requisitos</label>
+                <textarea
+                  rows={2}
+                  value={requisitos}
+                  onChange={(e) => setRequisitos(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-black"
+                  placeholder="Ej. Ser mayor de edad..."
                 />
               </div>
             </div>
@@ -269,49 +249,40 @@ export default function CrearVotacionPage() {
         {/* Fechas y horarios */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-            <Calendar className="w-5 h-5 mr-2" />
-            Fechas y horarios
+            <Calendar className="w-5 h-5 mr-2" /> Fechas y horarios
           </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Fecha y hora de inicio */}
+          <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Inicio de la votación
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Inicio</label>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="date"
                   value={fechaInicio}
                   onChange={(e) => setFechaInicio(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="px-3 py-2 border rounded-lg text-black"
                 />
                 <input
                   type="time"
                   value={horaInicio}
                   onChange={(e) => setHoraInicio(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="px-3 py-2 border rounded-lg text-black"
                 />
               </div>
             </div>
-
-            {/* Fecha y hora de cierre */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Cierre de la votación
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Cierre</label>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="date"
                   value={fechaCierre}
                   onChange={(e) => setFechaCierre(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="px-3 py-2 border rounded-lg text-black"
                 />
                 <input
                   type="time"
                   value={horaCierre}
                   onChange={(e) => setHoraCierre(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="px-3 py-2 border rounded-lg text-black"
                 />
               </div>
             </div>
@@ -321,162 +292,105 @@ export default function CrearVotacionPage() {
         {/* Opciones de votación */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Opciones de votación</h2>
-          
           <div className="space-y-4">
-            {opciones.map((opcion, index) => (
-              <div key={opcion.id} className="flex items-center space-x-3">
-                <span className="text-sm text-gray-500 w-8">#{index + 1}</span>
+            {opciones.map((op, idx) => (
+              <div key={op.id} className="flex items-center space-x-3">
+                <span className="w-6 text-gray-500">#{idx + 1}</span>
                 <input
                   type="text"
-                  value={opcion.texto}
-                  onChange={(e) => actualizarOpcion(opcion.id, e.target.value)}
-                  placeholder={`Opción ${index + 1}`}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={op.texto}
+                  onChange={(e) => actualizarOpcion(op.id, e.target.value)}
+                  placeholder={`Opción ${idx + 1}`}
+                  className="flex-1 px-3 py-2 border rounded-lg text-black"
                 />
                 {opciones.length > 2 && (
                   <button
                     type="button"
-                    onClick={() => eliminarOpcion(opcion.id)}
-                    className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                    onClick={() => eliminarOpcion(op.id)}
+                    className="text-red-600 hover:bg-red-100 rounded px-2 py-1"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
             ))}
-            
             <button
               type="button"
               onClick={agregarOpcion}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              className="inline-flex items-center text-blue-600 hover:underline text-sm"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Añadir otra opción
+              <Plus className="w-4 h-4 mr-1" /> Añadir opción
             </button>
           </div>
         </div>
 
-        {/* Configuración */}
+        {/* Configuración adicional */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Configuración</h2>
-          
-          <div className="space-y-6">
-            {/* Visibilidad */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Visibilidad
-              </label>
-              <div className="space-y-3">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="visibilidad"
-                    value="publica"
-                    checked={visibilidad === 'publica'}
-                    onChange={(e) => setVisibilidad(e.target.value as 'publica' | 'privada')}
-                    className="text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-3 text-sm text-gray-700">
-                    <span className="font-medium">Pública</span> - Visible para todos los usuarios
-                  </span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="visibilidad"
-                    value="privada"
-                    checked={visibilidad === 'privada'}
-                    onChange={(e) => setVisibilidad(e.target.value as 'publica' | 'privada')}
-                    className="text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-3 text-sm text-gray-700">
-                    <span className="font-medium">Privada</span> - Solo visible para participantes autorizados
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {/* Opciones adicionales */}
-            <div className="space-y-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={permitirMultiple}
-                  onChange={(e) => setPermitirMultiple(e.target.checked)}
-                  className="text-blue-600 focus:ring-blue-500 rounded"
-                />
-                <span className="ml-3 text-sm text-gray-700">
-                  Permitir selección múltiple
-                </span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={requiereVerificacion}
-                  onChange={(e) => setRequiereVerificacion(e.target.checked)}
-                  className="text-blue-600 focus:ring-blue-500 rounded"
-                />
-                <span className="ml-3 text-sm text-gray-700">
-                  Requiere verificación de identidad
-                </span>
-              </label>
-            </div>
+          <div className="space-y-4">
+            <label className="flex items-center text-black">
+              <input
+                type="checkbox"
+                checked={permitirMultiple}
+                onChange={(e) => setPermitirMultiple(e.target.checked)}
+                className="mr-2 "
+              />
+              Permitir selección múltiple
+            </label>
+            <label className="flex items-center text-black">
+              <input
+                type="checkbox"
+                checked={requiereVerificacion}
+                onChange={(e) => setRequiereVerificacion(e.target.checked)}
+                className="mr-2"
+              />
+              Requiere verificación de identidad
+            </label>
           </div>
         </div>
 
         {/* Información importante */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start">
-            <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+            <Info className="w-5 h-5 text-blue-600 mr-3" />
             <div className="text-sm text-blue-800">
               <p className="font-medium mb-1">Información importante:</p>
               <ul className="list-disc list-inside space-y-1">
-                <li>Una vez publicada, la votación no podrá ser eliminada, solo editada antes de que inicie.</li>
-                <li>Los resultados serán públicos automáticamente después del cierre.</li>
-                <li>Puedes guardar como borrador para continuar editando más tarde.</li>
+                <li>Una vez publicada, la votación no podrá eliminarse, solo editarse antes de iniciar.</li>
+                <li>Los resultados serán públicos después del cierre.</li>
+                <li>Puedes guardar como borrador para continuar más tarde.</li>
               </ul>
             </div>
           </div>
         </div>
 
         {/* Botones de acción */}
-        <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+        <div className="flex justify-between items-center pt-6 border-t">
           <button
             type="button"
             onClick={() => router.back()}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center px-4 py-2 text-gray-700 border rounded-lg"
           >
-            <X className="w-4 h-4 mr-2" />
-            Cancelar
+            <X className="w-4 h-4 mr-2" /> Cancelar
           </button>
-
           <div className="flex space-x-3">
             <button
               type="button"
               onClick={(e) => handleSubmit(e, true)}
               disabled={loading}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex items-center px-4 py-2 bg-gray-100 border rounded-lg disabled:opacity-50"
             >
-              <Save className="w-4 h-4 mr-2" />
-              Guardar borrador
+              <Save className="w-4 h-4 mr-2" /> Guardar borrador
             </button>
-
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
             >
               {loading ? (
-                <>
-                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Creando...
-                </>
+                <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Crear votación
-                </>
+                <><Save className="w-4 h-4 mr-2" /> Crear votación</>
               )}
             </button>
           </div>
