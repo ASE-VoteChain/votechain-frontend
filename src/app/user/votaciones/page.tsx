@@ -561,7 +561,7 @@ export default function VotacionesUsuarioPage() {
         
         <div className="flex items-center gap-4">
           <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-            <Bell className="w-4 h-4 mr-2" />
+            <Bell className="w-4 h-4 mr-2 text-white" />
             Configurar notificaciones
           </button>
         </div>
@@ -808,10 +808,10 @@ export default function VotacionesUsuarioPage() {
 
       {/* Filtros */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 !text-black">
           {/* Búsqueda */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 " />
             <input
               type="text"
               placeholder="Buscar votaciones..."
@@ -1031,9 +1031,9 @@ export default function VotacionesUsuarioPage() {
                       {votacion.estado === 'abierta' && !votacion.hasParticipated && (
                         <Link 
                           href={`/user/votaciones/${votacion.id}`}
-                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors !text-white"
                         >
-                          <Vote className="w-4 h-4 mr-2" />
+                          <Vote className="w-4 h-4 mr-2 text-white" />
                           Votar ahora
                         </Link>
                       )}
@@ -1092,12 +1092,12 @@ export default function VotacionesUsuarioPage() {
                           <button
                             onClick={() => handleReanudarVotacion(votacion.id, votacion.titulo)}
                             disabled={loadingAction === `reanudar-${votacion.id}`}
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed !text-white"
                           >
                             {loadingAction === `reanudar-${votacion.id}` ? (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
                             ) : (
-                              <Play className="w-4 h-4 mr-2" />
+                              <Play className="w-4 h-4 mr-2 text-white" />
                             )}
                             Reanudar
                           </button>
@@ -1188,19 +1188,19 @@ export default function VotacionesUsuarioPage() {
           {vistaActual !== 'todas' && vistaActual !== 'mis-creadas' && (
             <button
               onClick={() => setVistaActual('todas')}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors !text-white"
             >
               Ver todas las votaciones
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="w-4 h-4 ml-2 text-white" />
             </button>
           )}
           {vistaActual === 'mis-creadas' && (
             <Link
               href="/user/crear-votacion"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors !text-white"
             >
               Crear mi primera votación
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="w-4 h-4 ml-2 text-white" />
             </Link>
           )}
         </div>
