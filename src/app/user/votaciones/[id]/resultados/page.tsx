@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import useUser from '@/hooks/useUser';
@@ -18,14 +18,10 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Hash,
-  ExternalLink,
   Copy,
   Loader2,
   Info,
-  Target,
   Zap,
-  MapPin,
   User
 } from 'lucide-react';
 
@@ -41,16 +37,7 @@ export default function ResultadosVotacionPage() {
 
   const votacionId = params?.id ? parseInt(params.id as string) : null;
 
-  // Cargar estadísticas de la votación
-  useEffect(() => {
-    if (!userLoading && user && votacionId) {
-      loadEstadisticas();
-    } else if (!userLoading && !user) {
-      router.push('/auth/login');
-    }
-  }, [user, userLoading, votacionId]);
-
-  const loadEstadisticas = async () => {
+  const loadEstadisticas = useCallback(async () => {
     if (!votacionId) return;
     
     try {
@@ -68,13 +55,22 @@ export default function ResultadosVotacionPage() {
         ganador: estadisticasData.ganador.opcion
       });
       
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('❌ Error cargando estadísticas:', err);
       setError(err instanceof Error ? err.message : 'Error cargando estadísticas');
     } finally {
       setLoading(false);
     }
-  };
+  }, [votacionId]);
+
+  // Cargar estadísticas de la votación
+  useEffect(() => {
+    if (!userLoading && user && votacionId) {
+      loadEstadisticas();
+    } else if (!userLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [user, userLoading, votacionId, loadEstadisticas, router]);
 
   const copyToClipboard = async (text: string, type: string) => {
     try {

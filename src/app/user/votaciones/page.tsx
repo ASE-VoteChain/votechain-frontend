@@ -20,22 +20,14 @@ import {
   Eye,
   Bell,
   History,
-  Hash,
-  ExternalLink,
   Loader2,
-  Shield,
   Play,
   Pause,
   Square,
   Settings
 } from 'lucide-react';
 import useUser from '@/hooks/useUser';
-import userVotacionService, { 
-  VotacionResponse, 
-  PageResponse, 
-  FinalizarVotacionResponse, 
-  AdministrarVotacionResponse 
-} from '@/lib/userVotacionService';
+import userVotacionService from '@/lib/userVotacionService';
 import voteHistoryService, { VoteHistoryResponse } from '@/lib/voteHistoryService';
 
 interface VotacionUsuario {
@@ -78,10 +70,8 @@ export default function VotacionesUsuarioPage() {
   
   // Estado para datos del backend
   const [votaciones, setVotaciones] = useState<VotacionUsuario[]>([]);
-  const [userVoteHistory, setUserVoteHistory] = useState<VoteHistoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [errorDetails, setErrorDetails] = useState<any>(null);
   const [pagination, setPagination] = useState({
     page: 0,
     size: 20,
@@ -113,13 +103,16 @@ export default function VotacionesUsuarioPage() {
 
   // Estado específico para prevenir pestañeo al cambiar de vista
   const [loadingVistaChange, setLoadingVistaChange] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Cargar votaciones del backend
-  const loadVotaciones = async () => {
+  // Cargar votaciones del backend (usando useCallback para evitar recreación)
+  const loadVotaciones = useCallback(async () => {
     try {
-      setLoading(true);
+      // Solo mostrar loading en carga inicial o cuando hay cambios significativos
+      if (isInitialLoad || loadingVistaChange) {
+        setLoading(true);
+      }
       setError('');
-      setErrorDetails(null);
 
       // Verificar autenticación antes de proceder
       if (!user) {
@@ -128,8 +121,6 @@ export default function VotacionesUsuarioPage() {
         return;
       }
 
-      let response: PageResponse<VotacionResponse>;
-      
       const filters = {
         page: pagination.page,
         size: pagination.size,
@@ -141,27 +132,12 @@ export default function VotacionesUsuarioPage() {
       };
 
       console.log('🔍 Cargando votaciones con filtros:', filters);
-      console.log('👤 Estado de usuario:', {
-        user: !!user,
-        userId: user?.id,
-        email: user?.email,
-        userLoading,
-        isAuthenticated: !!user
-      });
 
       // Determinar qué endpoint usar (solo para usuarios autenticados)
       const showMyCreatedVotaciones = vistaActual === 'mis-creadas';
       const context = userVotacionService.determineContext(!!user, showMyCreatedVotaciones);
-      console.log('📡 Contexto y endpoint:', {
-        context,
-        vistaActual,
-        showMyCreatedVotaciones,
-        endpoint: context === 'user' ? '/api/votaciones/user/votaciones' :
-                 '/api/votaciones/mis-votaciones',
-        requiresAuth: true
-      });
-
-      response = await userVotacionService.getVotaciones(context, filters);
+      
+      const response = await userVotacionService.getVotaciones(context, filters);
 
       // Cargar historial de votos del usuario para enriquecer la información
       let userVotes: VoteHistoryResponse[] = [];
@@ -172,7 +148,6 @@ export default function VotacionesUsuarioPage() {
           size: 100 // Cargar bastantes para tener información completa
         });
         userVotes = voteHistoryResponse.content;
-        setUserVoteHistory(userVotes);
         console.log('✅ Historial de votos cargado:', userVotes.length, 'votos');
       } catch (voteHistoryError) {
         console.warn('⚠️ No se pudo cargar el historial de votos:', voteHistoryError);
@@ -187,28 +162,25 @@ export default function VotacionesUsuarioPage() {
         return {
           ...votacion,
           id: votacion.id.toString(),
-          estado: userVotacionService.mapEstado(votacion.estado) as any,
+          estado: userVotacionService.mapEstado(votacion.estado) as 'abierta' | 'proxima' | 'cerrada' | 'creada' | 'suspendida' | 'cancelada',
           categoria: userVotacionService.mapCategoria(votacion.categoria),
-          prioridad: userVotacionService.mapPrioridad(votacion.prioridad) as any,
+          prioridad: userVotacionService.mapPrioridad(votacion.prioridad) as 'alta' | 'media' | 'baja',
           fechaInicio: userVotacionService.formatDate(votacion.fechaInicio),
           fechaFin: userVotacionService.formatDate(votacion.fechaFin),
-          participantes: votacion.totalVotos || 0, // Usar totalVotos como número de participantes
+          participantes: votacion.totalVotos || 0,
           totalElegibles: votacion.totalElegibles || 0,
           hasParticipated: votacion.hasParticipated || false,
           tipo: votacion.categoria || 'Votación',
           ubicacion: votacion.ubicacion || 'No especificada',
           organizador: votacion.organizador || 'Sistema',
-          notificacionesActivas: false, // Se puede implementar más tarde
-          // Información básica del voto (del endpoint de votaciones)
+          notificacionesActivas: false,
           opcionSeleccionada: votacion.userVote?.opcionTitulo || userVoteDetail?.opcionTitulo,
           hashTransaccion: votacion.userVote?.hashTransaccion || userVoteDetail?.blockchainTransactionHash,
           fechaVoto: votacion.userVote?.fechaVoto || userVoteDetail?.createdAt,
-          // Información detallada del voto (del historial)
           voteHash: userVoteDetail?.voteHash,
           blockchainStatus: userVoteDetail?.blockchainStatus,
           blockchainVerifiedAt: userVoteDetail?.blockchainVerifiedAt,
           voteStatus: userVoteDetail?.status,
-          // Nuevas propiedades para estadísticas
           opciones: votacion.opciones?.map(opcion => ({
             id: opcion.id,
             titulo: opcion.titulo,
@@ -242,28 +214,14 @@ export default function VotacionesUsuarioPage() {
       
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido cargando votaciones';
       setError(errorMessage);
-      setErrorDetails({
-        originalError: err,
-        timestamp: new Date().toISOString(),
-        context: {
-          user: !!user,
-          filters: {
-            page: pagination.page,
-            size: pagination.size,
-            searchTerm,
-            filtroEstado,
-            filtroCategoria,
-            filtroParticipacion
-          }
-        }
-      });
       
-      // En caso de error, usar array vacío
       setVotaciones([]);
     } finally {
       setLoading(false);
+      setLoadingVistaChange(false);
+      setIsInitialLoad(false);
     }
-  };
+  }, [user, pagination.page, pagination.size, searchTerm, filtroEstado, filtroCategoria, filtroParticipacion, vistaActual, isInitialLoad, loadingVistaChange]);
 
   // Cargar votaciones al montar el componente y cuando cambien los filtros críticos
   useEffect(() => {
@@ -283,23 +241,26 @@ export default function VotacionesUsuarioPage() {
       console.log('📊 useEffect principal: Usuario no autenticado, limpiando estado...');
       setVotaciones([]);
       setError('');
-      setErrorDetails(null);
       setLoading(false);
     }
-  }, [user, userLoading, loadVotaciones]);
+  }, [user, userLoading, loadVotaciones, filtroCategoria, filtroEstado, filtroParticipacion, pagination.page, vistaActual]);
 
   // Buscar cuando el usuario termine de escribir (con debounce)
   useEffect(() => {
-    if (!userLoading && user && searchTerm !== '') {
-      const timeoutId = setTimeout(() => {
-        console.log('🔍 useEffect búsqueda: Ejecutando búsqueda con término:', searchTerm);
-        // Siempre resetear a página 0 para búsquedas nuevas
-        setPagination(prev => ({ ...prev, page: 0 }));
-      }, 500);
+    if (!userLoading && user) {
+      if (searchTerm !== '') {
+        const timeoutId = setTimeout(() => {
+          console.log('🔍 useEffect búsqueda: Ejecutando búsqueda con término:', searchTerm);
+          setPagination(prev => ({ ...prev, page: 0 }));
+        }, 500);
 
-      return () => clearTimeout(timeoutId);
+        return () => clearTimeout(timeoutId);
+      } else if (pagination.page !== 0) {
+        // Solo resetear si la página no es ya 0
+        setPagination(prev => ({ ...prev, page: 0 }));
+      }
     }
-  }, [searchTerm, user, userLoading]);
+  }, [searchTerm, user, userLoading, pagination.page]);
 
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
@@ -383,17 +344,6 @@ export default function VotacionesUsuarioPage() {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
-    });
-  };
-
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
     });
   };
 
@@ -482,7 +432,7 @@ export default function VotacionesUsuarioPage() {
     }
   };
 
-  const canManageVotacion = (votacion: VotacionUsuario): boolean => {
+  const canManageVotacion = (): boolean => {
     // Solo se puede administrar en la vista "mis-creadas"
     return vistaActual === 'mis-creadas';
   };
@@ -571,7 +521,9 @@ export default function VotacionesUsuarioPage() {
   }, []);
 
   const handleVistaChange = useCallback((vista: 'todas' | 'participadas' | 'pendientes' | 'mis-creadas') => {
+    setLoadingVistaChange(true);
     setVistaActual(vista);
+    setPagination(prev => ({ ...prev, page: 0 }));
   }, []);
 
   const handleLimpiarFiltros = useCallback(() => {
@@ -666,22 +618,6 @@ export default function VotacionesUsuarioPage() {
               <h3 className="text-lg font-medium text-red-900 mb-2">Error al cargar votaciones</h3>
               <p className="text-red-700 mb-4">{error}</p>
               
-              {errorDetails && (
-                <details className="mb-4">
-                  <summary className="text-sm text-red-600 cursor-pointer hover:text-red-800 mb-2">
-                    Ver detalles técnicos
-                  </summary>
-                  <div className="bg-red-100 rounded p-3 text-xs font-mono text-red-800 overflow-auto max-h-40">
-                    <div><strong>Timestamp:</strong> {errorDetails.timestamp}</div>
-                    <div><strong>Usuario autenticado:</strong> {errorDetails.context.user ? 'Sí' : 'No'}</div>
-                    <div><strong>Filtros:</strong> {JSON.stringify(errorDetails.context.filters, null, 2)}</div>
-                    {errorDetails.originalError && (
-                      <div><strong>Error original:</strong> {JSON.stringify(errorDetails.originalError, null, 2)}</div>
-                    )}
-                  </div>
-                </details>
-              )}
-              
               <div className="flex gap-2">
                 <button
                   onClick={() => loadVotaciones()}
@@ -694,7 +630,6 @@ export default function VotacionesUsuarioPage() {
                 <button
                   onClick={() => {
                     setError('');
-                    setErrorDetails(null);
                     // Reset filters
                     setSearchTerm('');
                     setFiltroEstado('todas');
@@ -1053,7 +988,7 @@ export default function VotacionesUsuarioPage() {
 
                 <div className="flex gap-2">
                   {/* Acciones para usuarios regulares */}
-                  {!canManageVotacion(votacion) && (
+                  {!canManageVotacion() && (
                     <>
                       {votacion.estado === 'abierta' && !votacion.hasParticipated && (
                         <Link 
@@ -1082,7 +1017,7 @@ export default function VotacionesUsuarioPage() {
                   )}
 
                   {/* Acciones para administradores (mis votaciones) */}
-                  {canManageVotacion(votacion) && (
+                  {canManageVotacion() && (
                     <>
                       {votacion.estado === 'abierta' && (
                         <>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import useUser from '@/hooks/useUser';
@@ -8,20 +8,16 @@ import voteService, { VotacionDetalle, CreateVoteRequest } from '@/lib/voteServi
 import { 
   ArrowLeft, 
   CheckCircle, 
-  Clock, 
   Users, 
   AlertTriangle,
   Shield,
   Info,
   Calendar,
   MapPin,
-  User,
   Lock,
   Vote,
   Loader2,
-  Hash,
-  ExternalLink,
-  FileText
+  Hash
 } from 'lucide-react';
 
 export default function VotacionDetallePage() {
@@ -39,16 +35,7 @@ export default function VotacionDetallePage() {
 
   const votacionId = params?.id ? parseInt(params.id as string) : null;
 
-  // Cargar detalle de la votación
-  useEffect(() => {
-    if (!userLoading && user && votacionId) {
-      loadVotacionDetail();
-    } else if (!userLoading && !user) {
-      router.push('/auth/login');
-    }
-  }, [user, userLoading, votacionId]);
-
-  const loadVotacionDetail = async () => {
+  const loadVotacionDetail = useCallback(async () => {
     if (!votacionId) return;
     
     try {
@@ -67,13 +54,22 @@ export default function VotacionDetallePage() {
         opciones: votacionData.opciones?.length || 0
       });
       
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('❌ Error cargando detalle de votación:', err);
       setError(err instanceof Error ? err.message : 'Error cargando votación');
     } finally {
       setLoading(false);
     }
-  };
+  }, [votacionId]);
+
+  // Cargar detalle de la votación
+  useEffect(() => {
+    if (!userLoading && user && votacionId) {
+      loadVotacionDetail();
+    } else if (!userLoading && !user) {
+      router.push('/auth/login');
+    }
+  }, [user, userLoading, votacionId, loadVotacionDetail, router]);
 
   // Manejar envío de voto
   const handleVote = async () => {

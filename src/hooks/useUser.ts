@@ -1,7 +1,7 @@
 // Hook personalizado para manejar datos del usuario
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { UserDto } from '@/lib/api'
 import ApiService from '@/lib/api'
 import AuthService from '@/lib/auth'
@@ -20,7 +20,7 @@ function useUser(): UseUserReturn {
   const [error, setError] = useState<string | null>(null)
   const [lastTokenCheck, setLastTokenCheck] = useState<string | null>(null)
 
-  const loadUser = async (forceRefresh = false) => {
+  const loadUser = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true)
       setError(null)
@@ -72,7 +72,7 @@ function useUser(): UseUserReturn {
       setError((err as Error).message || 'Error obteniendo datos del usuario')
       
       // Si el token expiró o es inválido, limpiar localStorage
-      if ((err as any).status === 401) {
+      if ((err as { status?: number }).status === 401) {
         console.log('👤 useUser: Token expired/invalid, logging out')
         AuthService.logout()
         setUser(null)
@@ -81,7 +81,7 @@ function useUser(): UseUserReturn {
     } finally {
       setLoading(false)
     }
-  }
+  }, [lastTokenCheck]);
 
   const refreshUser = async () => {
     console.log('👤 useUser: Refreshing user data...')
@@ -125,7 +125,7 @@ function useUser(): UseUserReturn {
       window.removeEventListener('storage', handleStorageChange)
       window.removeEventListener('votechain-auth-changed', handleCustomStorageChange)
     }
-  }, [])
+  }, [loadUser])
 
   return {
     user,

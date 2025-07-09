@@ -122,7 +122,7 @@ class VotacionService {
   /**
    * Obtener todas las votaciones del usuario (las que he creado)
    */
-  async getUserVotaciones(page: number = 0, size: number = 10): Promise<any> {
+  async getUserVotaciones(page: number = 0, size: number = 10): Promise<unknown> {
     try {
       const token = AuthService.getAccessToken()
       if (!token) {

@@ -105,18 +105,25 @@ export default function RegisterPage() {
       // Redirigir al dashboard
       router.push('/user/public-stats')
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error en registro:', error)
       
       // Manejar errores específicos de la API
-      if (error.status === 400) {
-        setErrors({ email: 'El email ya está registrado o hay un error en los datos.' })
-      } else if (error.status === 409) {
-        setErrors({ email: 'Ya existe una cuenta con este email.' })
-      } else if (error.status >= 500) {
-        setErrors({ general: 'Error del servidor. Intenta más tarde.' })
-      } else {
+      if (error && typeof error === 'object' && 'status' in error) {
+        const apiError = error as { status: number; message?: string }
+        if (apiError.status === 400) {
+          setErrors({ email: 'El email ya está registrado o hay un error en los datos.' })
+        } else if (apiError.status === 409) {
+          setErrors({ email: 'Ya existe una cuenta con este email.' })
+        } else if (apiError.status >= 500) {
+          setErrors({ general: 'Error del servidor. Intenta más tarde.' })
+        } else {
+          setErrors({ general: apiError.message || 'Error en el registro.' })
+        }
+      } else if (error instanceof Error) {
         setErrors({ general: error.message || 'Error en el registro.' })
+      } else {
+        setErrors({ general: 'Error en el registro.' })
       }
     } finally {
       setIsLoading(false)

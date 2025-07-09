@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Vote, Menu, X, Shield, LogIn, UserPlus } from 'lucide-react';
+import { Vote, Menu, X, LogIn, UserPlus } from 'lucide-react';
 
 export default function PublicNavbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

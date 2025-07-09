@@ -51,7 +51,7 @@ export default function ProfilePage() {
         return
       }
 
-      const updatedUser = await ApiService.updateUserProfile(token, formData)
+      await ApiService.updateUserProfile(token, formData)
       
       // Actualizar datos locales
       await refreshUser()
@@ -59,9 +59,9 @@ export default function ProfilePage() {
       setSuccessMessage('Perfil actualizado exitosamente')
       setIsEditing(false)
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error actualizando perfil:', error)
-      setErrorMessage(error.message || 'Error actualizando perfil')
+      setErrorMessage((error as Error).message || 'Error actualizando perfil')
     } finally {
       setIsLoading(false)
     }

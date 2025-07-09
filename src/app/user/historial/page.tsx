@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import useUser from '@/hooks/useUser';
 import voteHistoryService, { VoteHistoryResponse, HistorialFilters } from '@/lib/voteHistoryService';
@@ -17,8 +17,7 @@ import {
   AlertTriangle,
   Eye,
   RefreshCw,
-  Copy,
-  ArrowLeft
+  Copy
 } from 'lucide-react';
 
 export default function HistorialPage() {
@@ -42,31 +41,12 @@ export default function HistorialPage() {
   const [filtroBlockchain, setFiltroBlockchain] = useState('todos');
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
-  // Cargar historial de votos
-  useEffect(() => {
-    if (!userLoading && user) {
-      loadVoteHistory(true); // Siempre resetear cuando cambien los filtros
-    }
-  }, [user, userLoading, filtroEstado, filtroBlockchain]);
-
-  // Buscar cuando el usuario termine de escribir
-  useEffect(() => {
-    if (!userLoading && user) {
-      const timeoutId = setTimeout(() => {
-        setPagination(prev => ({ ...prev, page: 0 }));
-        loadVoteHistory(true);
-      }, 500);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [searchTerm, user, userLoading]);
-
-  const loadVoteHistory = async (reset = false) => {
+  const loadVoteHistory = useCallback(async (reset = false) => {
     try {
       if (reset) {
         setLoading(true);
         setVoteHistory([]);
-        setPagination(prev => ({ ...prev, page: 0 })); // Resetear página
+        setPagination(prev => ({ ...prev, page: 0 }));
       } else {
         setLoadingMore(true);
       }
@@ -89,7 +69,6 @@ export default function HistorialPage() {
         console.log('✅ Historial reseteado con:', response.content.length, 'elementos');
       } else {
         setVoteHistory(prev => {
-          // Evitar duplicados verificando IDs existentes
           const existingIds = new Set(prev.map(v => v.id));
           const newItems = response.content.filter(item => !existingIds.has(item.id));
           console.log('✅ Agregando', newItems.length, 'nuevos elementos (filtrados de', response.content.length, ')');
@@ -111,7 +90,7 @@ export default function HistorialPage() {
         enPantalla: reset ? response.content.length : voteHistory.length + response.content.length
       });
 
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('❌ Error cargando historial de votos:', err);
       setError(err instanceof Error ? err.message : 'Error cargando historial');
       if (reset) {
@@ -121,7 +100,26 @@ export default function HistorialPage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [pagination.page, pagination.size, searchTerm, filtroEstado, filtroBlockchain, voteHistory.length]);
+
+  // Cargar historial de votos
+  useEffect(() => {
+    if (!userLoading && user) {
+      loadVoteHistory(true); // Siempre resetear cuando cambien los filtros
+    }
+  }, [user, userLoading, filtroEstado, filtroBlockchain, loadVoteHistory]);
+
+  // Buscar cuando el usuario termine de escribir
+  useEffect(() => {
+    if (!userLoading && user) {
+      const timeoutId = setTimeout(() => {
+        setPagination(prev => ({ ...prev, page: 0 }));
+        loadVoteHistory(true);
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchTerm, user, userLoading, loadVoteHistory]);
 
   const loadMoreResults = () => {
     if (pagination.page + 1 < pagination.totalPages && !loadingMore) {

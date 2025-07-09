@@ -10,20 +10,18 @@ import {
   BarChart3, 
   TrendingUp,
   Activity,
-  Calendar,
   CheckCircle,
   Clock,
   RefreshCw,
   ArrowRight,
   PlusCircle,
-  Eye,
   Award,
   Globe,
   TrendingDown
 } from 'lucide-react'
 
 export default function PublicStatsPage() {
-  const { user, loading: userLoading } = useUser()
+  const { user } = useUser()
   const [stats, setStats] = useState<PublicStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

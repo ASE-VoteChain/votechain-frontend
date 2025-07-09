@@ -232,7 +232,7 @@ class StatisticsService {
       console.error('❌ Error obteniendo estadísticas públicas:', error)
       
       // Si es un error de red o CORS, usar datos de fallback
-      if (error instanceof TypeError || (error as any).name === 'TypeError') {
+      if (error instanceof TypeError || (error as { name?: string }).name === 'TypeError') {
         console.log('⚠️ Error de conectividad o CORS. Usando datos de fallback.')
         return this.getFallbackPublicStats()
       }

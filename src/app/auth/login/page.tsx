@@ -81,7 +81,7 @@ export default function LoginPage() {
       // Redirigir al dashboard
       router.push('/user/public-stats')
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error en login:', error)
       
       // Incrementar contador de intentos
@@ -99,13 +99,18 @@ export default function LoginPage() {
         let errorMsg = 'Credenciales incorrectas.'
         
         // Personalizar mensaje según el error de la API
-        if (error.status === 401) {
-          errorMsg = 'Email o contraseña incorrectos.'
-        } else if (error.status === 404) {
-          errorMsg = 'Usuario no encontrado.'
-        } else if (error.status >= 500) {
-          errorMsg = 'Error del servidor. Intenta más tarde.'
-        } else if (error.message) {
+        if (error && typeof error === 'object' && 'status' in error) {
+          const apiError = error as { status: number; message?: string }
+          if (apiError.status === 401) {
+            errorMsg = 'Email o contraseña incorrectos.'
+          } else if (apiError.status === 404) {
+            errorMsg = 'Usuario no encontrado.'
+          } else if (apiError.status >= 500) {
+            errorMsg = 'Error del servidor. Intenta más tarde.'
+          } else if (apiError.message) {
+            errorMsg = apiError.message
+          }
+        } else if (error instanceof Error && error.message) {
           errorMsg = error.message
         }
         
